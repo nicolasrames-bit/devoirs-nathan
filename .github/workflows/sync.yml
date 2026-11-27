@@ -1,0 +1,78 @@
+name: Sync devoirs
+
+on:
+  schedule:
+    # Heures UTC -> en Israël : ~14h, 17h et 20h (une heure de plus l'été), du dimanche au vendredi
+    - cron: "7 12,15,18 * * 0-5"
+  workflow_dispatch:
+    inputs:
+      diagnostic:
+        description: "Mode diagnostic (affiche la structure des réponses Webtop, sans les valeurs)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # pour le petit commit "keepalive" mensuel
+  pages: write
+  id-token: write
+
+concurrency:
+  group: sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Récupérer les devoirs
+        env:
+          WEBTOP_USERNAME: ${{ secrets.WEBTOP_USERNAME }}
+          WEBTOP_PASSWORD: ${{ secrets.WEBTOP_PASSWORD }}
+          WEBTOP_DATA: ${{ secrets.WEBTOP_DATA }}
+          WEBTOP_CLASS_CODE: ${{ secrets.WEBTOP_CLASS_CODE }}
+          WEBTOP_CLASS_NUMBER: ${{ secrets.WEBTOP_CLASS_NUMBER }}
+          WEBTOP_STUDENT_NAME: ${{ secrets.WEBTOP_STUDENT_NAME }}
+          FAMILY_PASSWORD: ${{ secrets.FAMILY_PASSWORD }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_CALENDAR_ID: ${{ secrets.GOOGLE_CALENDAR_ID }}
+          SITE_URL: ${{ steps.pages.outputs.base_url }}
+          DIAGNOSTIC: ${{ inputs.diagnostic && '1' || '' }}
+        run: python sync.py
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out/site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+      # GitHub met en pause les tâches planifiées d'un repo sans activité depuis 60 jours.
+      # Un mini-commit par mois (sans aucune donnée) évite ça.
+      - name: Keepalive
+        run: |
+          f=.github/keepalive
+          now=$(date +%s)
+          last=$(cat "$f" 2>/dev/null || echo 0)
+          if [ $((now - last)) -gt 2592000 ]; then
+            echo "$now" > "$f"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add "$f"
+            git commit -m "keepalive"
+            git push
+          fi

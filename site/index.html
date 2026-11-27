@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f6f1e7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="École">
+<title>École</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎒</text></svg>">
+<style>
+  :root{
+    --bg:#f6f1e7; --card:#fffdf8; --ink:#1f2a37; --muted:#6b7280; --line:#e7dfcf; --soft:#efe8da;
+    --accent:#1d4ed8; --today:#c2410c; --ok:#15803d; --bad:#b91c1c; --radius:16px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#111418; --card:#1a1f26; --ink:#e8eaed; --muted:#9aa3ad; --line:#2a313a; --soft:#222932;
+           --accent:#7aa2ff; --today:#fb923c; --ok:#4ade80; --bad:#f87171; }
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Hebrew",Arial,sans-serif}
+  button{font:inherit;color:inherit}
+  .wrap{max-width:680px;margin:0 auto;padding:max(18px,env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom))}
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:8px 0 16px}
+  h1{font-size:28px;line-height:1.1;margin:0;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:13px;margin-top:6px}
+  .btn{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;font-size:14px;cursor:pointer}
+  .btn:active,.chip:active,.daybtn:active{transform:scale(.97)}
+  section{margin-top:24px}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px;font-weight:600;
+     display:flex;justify-content:space-between;align-items:baseline}
+  h2.today{color:var(--today)}
+  h2 a{text-transform:none;letter-spacing:0;font-weight:500;color:var(--accent);text-decoration:none;cursor:pointer}
+  .day{font-weight:600;font-size:15px;margin:14px 0 8px}
+  .hero{font-size:22px;font-weight:700;letter-spacing:-.01em}
+  .empty{background:var(--card);border:1px dashed var(--line);border-radius:var(--radius);padding:22px;text-align:center;color:var(--muted)}
+
+  /* cartes devoirs */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 14px 14px 16px;
+    margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;position:relative;overflow:hidden}
+  .card::before{content:"";position:absolute;inset:0 auto 0 0;width:5px;background:var(--c,#999)}
+  .card .body{flex:1;min-width:0}
+  .subj{font-weight:700;font-size:15px}
+  .content{white-space:pre-wrap;word-wrap:break-word;margin-top:4px}
+  .teacher{color:var(--muted);font-size:13px;margin-top:6px}
+  .when{color:var(--muted);font-size:12px;font-weight:600;margin-bottom:2px}
+  .check{flex:none;width:28px;height:28px;border-radius:50%;border:2px solid var(--line);background:transparent;cursor:pointer;
+    display:grid;place-items:center;color:transparent;font-size:16px;margin-top:2px;padding:0}
+  .card.done{opacity:.55}
+  .card.done .content{text-decoration:line-through}
+  .card.done .check{background:var(--ok);border-color:var(--ok);color:#fff}
+
+  /* emploi du temps */
+  .tt{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .lesson{display:flex;gap:12px;align-items:center;padding:11px 14px;border-top:1px solid var(--line);position:relative}
+  .lesson:first-child{border-top:0}
+  .lesson .h{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-weight:700;font-size:14px;
+    background:color-mix(in srgb, var(--c) 18%, transparent);color:var(--c)}
+  .lesson .lb{flex:1;min-width:0}
+  .lesson .ls{font-weight:600}
+  .lesson .lm{color:var(--muted);font-size:13px}
+  .lesson .ln{font-size:13px;color:var(--today);margin-top:2px}
+  .lesson.now{background:color-mix(in srgb, var(--accent) 9%, transparent)}
+  .lesson.now::after{content:"en cours";position:absolute;right:12px;top:12px;font-size:11px;font-weight:700;color:var(--accent)}
+  .lesson.cancel .ls{text-decoration:line-through;color:var(--muted)}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--bad);color:#fff;margin-left:6px;vertical-align:2px}
+  .bag{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+  .bag span{background:var(--soft);border-radius:999px;padding:4px 10px;font-size:13px}
+
+  .seg{display:flex;background:var(--soft);border-radius:12px;padding:3px;margin-bottom:12px}
+  .seg button{flex:1;border:0;background:transparent;padding:8px;border-radius:9px;font-size:14px;cursor:pointer;color:var(--muted)}
+  .seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .days{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:16px}
+  .daybtn{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:8px 0;cursor:pointer;text-align:center;position:relative}
+  .daybtn b{display:block;font-size:18px}
+  .daybtn small{font-size:12px;color:var(--muted)}
+  .daybtn[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+  .daybtn[aria-pressed="true"] small{color:inherit;opacity:.8}
+  .daybtn.is-today::after{content:"";position:absolute;bottom:4px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--today)}
+
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:0 16px 6px;margin:0 -16px 6px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:14px;cursor:pointer}
+  .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  details summary{cursor:pointer;color:var(--muted);font-size:14px;margin-top:26px}
+
+  /* barre d'onglets */
+  nav{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb, var(--card) 92%, transparent);
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));display:flex;justify-content:center}
+  nav .in{display:flex;max-width:520px;width:100%}
+  nav button{flex:1;border:0;background:transparent;padding:6px 4px;cursor:pointer;color:var(--muted);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
+  nav button span{font-size:22px;line-height:1.1}
+  nav button[aria-current="page"]{color:var(--accent);font-weight:600}
+  nav button{position:relative}
+  .count{position:absolute;top:2px;left:calc(50% + 8px);background:var(--today);color:#fff;border-radius:999px;font-size:10px;line-height:16px;min-width:16px;padding:0 4px;font-weight:700;font-style:normal}
+
+  /* écran mot de passe */
+  .lock{min-height:80vh;display:grid;place-items:center}
+  .lock form{width:100%;max-width:340px;text-align:center}
+  .lock .emoji{font-size:56px}
+  .lock input{width:100%;font:inherit;font-size:17px;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);margin:16px 0 10px}
+  .lock button{width:100%;padding:14px;border-radius:12px;border:0;background:var(--accent);color:#fff;font-weight:600;font-size:16px;cursor:pointer}
+  .err{color:#dc2626;font-size:14px;min-height:20px;margin-top:8px}
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="lock" class="lock">
+    <form id="lockForm" autocomplete="on">
+      <div class="emoji">🎒</div>
+      <h1 style="margin-top:8px">École</h1>
+      <div class="sub">Portail privé de la famille</div>
+      <input id="pw" type="password" placeholder="Mot de passe famille" autocomplete="current-password" required>
+      <button type="submit">Ouvrir</button>
+      <div id="err" class="err"></div>
+    </form>
+  </div>
+
+  <div id="app" class="hidden">
+    <header>
+      <div>
+        <h1 id="title">École</h1>
+        <div class="sub" id="updated"></div>
+      </div>
+      <button class="btn" id="reload" title="Recharger" aria-label="Recharger">↻</button>
+    </header>
+    <main id="view"></main>
+  </div>
+</div>
+
+<nav id="nav" class="hidden" aria-label="Sections">
+  <div class="in">
+    <button data-tab="home"><span>🏠</span>Aujourd'hui</button>
+    <button data-tab="tt"><span>🗓️</span>Emploi du temps</button>
+    <button data-tab="hw"><span>📚</span>Devoirs<i id="hwCount"></i></button>
+  </div>
+</nav>
+
+<script>
+(() => {
+  const PW_KEY = "devoirs.pw", DONE_KEY = "devoirs.done";
+  const store = {
+    get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+    set(k,v){ try { localStorage.setItem(k,v); } catch {} },
+    del(k){ try { localStorage.removeItem(k); } catch {} },
+  };
+  let data = null, filter = null, tab = "home", ttDay = null;
+  let done = new Set(JSON.parse(store.get(DONE_KEY) || "[]"));
+
+  const $ = id => document.getElementById(id);
+  const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+  // ---------- déchiffrement ----------
+  async function decrypt(blob, password){
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey(
+      {name:"PBKDF2", salt:b64(blob.salt), iterations:blob.iter, hash:"SHA-256"},
+      base, {name:"AES-GCM", length:256}, false, ["decrypt"]);
+    const pt = await crypto.subtle.decrypt({name:"AES-GCM", iv:b64(blob.iv)}, key, b64(blob.ct));
+    return JSON.parse(new TextDecoder().decode(pt));
+  }
+  async function load(password){
+    const r = await fetch("data.enc.json?t=" + Date.now(), {cache:"no-store"});
+    if (!r.ok) throw new Error("fetch");
+    return decrypt(await r.json(), password);
+  }
+  async function unlock(password, silent){
+    try {
+      data = await load(password);
+      data.items ||= []; data.lessons ||= [];
+      store.set(PW_KEY, password);
+      $("lock").classList.add("hidden");
+      $("app").classList.remove("hidden");
+      $("nav").classList.remove("hidden");
+      render();
+    } catch (e) {
+      if (silent) { store.del(PW_KEY); return; }
+      $("err").textContent = e.message === "fetch" ? "Données introuvables pour l'instant." : "Mot de passe incorrect.";
+    }
+  }
+
+  // ---------- outils ----------
+  const iso = d => d.toLocaleDateString("sv-SE");
+  const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+  const parse = s => new Date(s + "T12:00:00");
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const fmtDay = s => cap(parse(s).toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"}));
+  const fmtShort = s => cap(parse(s).toLocaleDateString("fr-FR", {weekday:"short", day:"numeric", month:"short"}));
+  const color = s => { let h = 0; for (const c of s) h = (h*31 + c.charCodeAt(0)) % 360; return `hsl(${h} 62% 48%)`; };
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const sunday = d => addDays(d, -d.getDay());
+  const lessonsOn = day => data.lessons.filter(l => l.date === day);
+  const hwOn = day => data.items.filter(i => i.date === day);
+  const schoolDays = () => [...new Set(data.lessons.map(l => l.date))].sort();
+  const nowHM = () => new Date().toTimeString().slice(0,5);
+
+  // ---------- composants ----------
+  function hwCard(it, showDate){
+    const isDone = done.has(it.id);
+    return `<div class="card ${isDone?"done":""}" style="--c:${color(it.subject)}" data-id="${it.id}">
+      <div class="body">
+        ${showDate ? `<div class="when">${fmtShort(it.date)}</div>` : ""}
+        <div class="subj" dir="auto">${esc(it.subject)}</div>
+        <div class="content" dir="auto">${esc(it.content)}</div>
+        ${it.teacher ? `<div class="teacher" dir="auto">${esc(it.teacher)}</div>` : ""}
+      </div>
+      <button class="check" aria-label="Marquer comme fait">✓</button>
+    </div>`;
+  }
+
+  function lessonRow(l, isToday){
+    const time = l.start ? `${l.start}${l.end ? "–" + l.end : ""}` : "";
+    const meta = [time, l.teacher, l.room].filter(Boolean).map(x => `<bdi>${esc(x)}</bdi>`).join(" · ");
+    const now = isToday && l.start && l.end && !l.cancelled && l.start <= nowHM() && nowHM() < l.end;
+    return `<div class="lesson ${l.cancelled?"cancel":""} ${now?"now":""}" style="--c:${color(l.subject)}">
+      <div class="h">${l.hour ?? "•"}</div>
+      <div class="lb">
+        <div class="ls" dir="auto">${esc(l.subject)}${l.cancelled ? `<span class="badge">Annulé</span>` : ""}</div>
+        ${meta ? `<div class="lm" dir="ltr">${meta}</div>` : ""}
+        ${l.note ? `<div class="ln" dir="auto">${esc(l.note)}</div>` : ""}
+      </div>
+    </div>`;
+  }
+
+  const timetable = (day) => {
+    const ls = lessonsOn(day);
+    return ls.length ? `<div class="tt">${ls.map(l => lessonRow(l, day === iso(new Date()))).join("")}</div>`
+                     : `<div class="empty">Pas de cours ce jour-là</div>`;
+  };
+
+  const bag = day => {
+    const subs = [...new Set(lessonsOn(day).filter(l => !l.cancelled).map(l => l.subject))];
+    return subs.length ? `<div class="bag" aria-label="Dans le cartable">🎒 ${subs.map(s => `<span dir="auto">${esc(s)}</span>`).join("")}</div>` : "";
+  };
+
+  // ---------- vues ----------
+  function viewHome(){
+    const today = iso(new Date());
+    const days = schoolDays();
+    const next = days.find(d => d > today);
+    const upcoming = data.items.filter(i => i.date >= today && (!next || i.date <= next) && !done.has(i.id));
+    let h = `<div class="hero">${fmtDay(today)}</div>`;
+
+    if (lessonsOn(today).length) {
+      h += `<section><h2 class="today">Aujourd'hui</h2>${timetable(today)}</section>`;
+    } else if (days.length) {
+      h += `<section><div class="empty">Pas d'école aujourd'hui 🎉</div></section>`;
+    }
+    if (next) {
+      h += `<section><h2>${fmtDay(next)} <a data-go="tt" data-day="${next}">Détail →</a></h2>${bag(next)}${timetable(next)}</section>`;
+    }
+    h += `<section><h2>Devoirs à faire <a data-go="hw">Tout voir →</a></h2>` +
+         (upcoming.length ? upcoming.map(i => hwCard(i, true)).join("") : `<div class="empty">🎉 Rien à faire pour l'instant</div>`) +
+         `</section>`;
+    return h;
+  }
+
+  function viewTT(){
+    const todayD = new Date(), today = iso(todayD);
+    const days = schoolDays();
+    if (!days.length) return `<div class="empty">L'emploi du temps n'est pas encore disponible.</div>`;
+    if (!ttDay) ttDay = days.find(d => d >= today) || days[days.length-1];
+    const sun = sunday(parse(ttDay));
+    const thisSun = iso(sunday(todayD)), nextSun = iso(addDays(sunday(todayD), 7));
+    const week = [...Array(6)].map((_,i) => iso(addDays(sun, i)));
+    const hasNext = days.some(d => d >= nextSun);
+    let h = "";
+    if (hasNext) h += `<div class="seg">
+        <button data-week="${thisSun}" aria-pressed="${iso(sun)===thisSun}">Cette semaine</button>
+        <button data-week="${nextSun}" aria-pressed="${iso(sun)===nextSun}">Semaine prochaine</button></div>`;
+    h += `<div class="days">` + week.map(d => {
+      const dd = parse(d);
+      return `<button class="daybtn ${d===today?"is-today":""}" data-day="${d}" aria-pressed="${d===ttDay}">
+        <small>${dd.toLocaleDateString("fr-FR",{weekday:"short"}).replace(".","")}</small><b>${dd.getDate()}</b></button>`;
+    }).join("") + `</div>`;
+    h += `<h2 class="${ttDay===today?"today":""}">${fmtDay(ttDay)}</h2>${bag(ttDay)}${timetable(ttDay)}`;
+    const hw = hwOn(ttDay);
+    if (hw.length) h += `<section><h2>Devoirs de ce jour</h2>${hw.map(i => hwCard(i)).join("")}</section>`;
+    return h;
+  }
+
+  function group(title, items, cls=""){
+    if (!items.length) return "";
+    const byDay = {};
+    items.forEach(i => (byDay[i.date] ||= []).push(i));
+    const days = Object.keys(byDay).sort();
+    const showDay = days.length > 1 || !/Aujourd|Demain/.test(title);
+    return `<section>${title ? `<h2 class="${cls}">${title}</h2>` : ""}` + days.map(d =>
+      (showDay ? `<div class="day">${fmtDay(d)}</div>` : "") + byDay[d].map(i => hwCard(i)).join("")
+    ).join("") + `</section>`;
+  }
+
+  function viewHW(){
+    const subjects = [...new Set(data.items.map(i => i.subject))].sort();
+    let h = subjects.length > 1
+      ? `<div class="chips">` + [`<button class="chip" aria-pressed="${!filter}" data-s="">Tout</button>`]
+          .concat(subjects.map(s => `<button class="chip" dir="auto" aria-pressed="${filter===s}" data-s="${esc(s)}">${esc(s)}</button>`)).join("") + `</div>`
+      : "";
+    const items = data.items.filter(i => !filter || i.subject === filter);
+    const now = new Date(), t0 = iso(now), t1 = iso(addDays(now,1)), t7 = iso(addDays(now,7));
+    const parts = [
+      group("Aujourd'hui", items.filter(i => i.date === t0), "today"),
+      group("Demain", items.filter(i => i.date === t1)),
+      group("Cette semaine", items.filter(i => i.date > t1 && i.date <= t7)),
+      group("Plus tard", items.filter(i => i.date > t7)),
+    ].join("");
+    h += parts || `<div class="empty">🎉 Aucun devoir à venir</div>`;
+    const past = items.filter(i => i.date < t0).reverse();
+    if (past.length) h += `<details><summary>Jours précédents (${past.length})</summary>${group("", past)}</details>`;
+    return h;
+  }
+
+  function render(){
+    const name = data.student || "";
+    $("title").textContent = name || "École";
+    document.title = name ? `École · ${name}` : "École";
+    if (data.updated) {
+      const u = new Date(data.updated);
+      $("updated").textContent = "Mis à jour " + u.toLocaleString("fr-FR", {weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+    }
+    const today = iso(new Date());
+    const todo = data.items.filter(i => i.date >= today && !done.has(i.id)).length;
+    $("hwCount").textContent = todo || ""; $("hwCount").className = todo ? "count" : "";
+    document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
+    $("view").innerHTML = tab === "tt" ? viewTT() : tab === "hw" ? viewHW() : viewHome();
+  }
+
+  function go(t, day){
+    tab = t; if (day) ttDay = day;
+    try { history.replaceState(null, "", "#" + t); } catch {}
+    render(); window.scrollTo(0, 0);
+  }
+
+  // ---------- événements ----------
+  $("lockForm").addEventListener("submit", e => { e.preventDefault(); $("err").textContent = ""; unlock($("pw").value); });
+  $("reload").addEventListener("click", () => { const p = store.get(PW_KEY); if (p) unlock(p); });
+  $("nav").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) go(b.dataset.tab); });
+  $("view").addEventListener("click", e => {
+    const t = e.target;
+    const link = t.closest("[data-go]"); if (link) return go(link.dataset.go, link.dataset.day);
+    const chip = t.closest(".chip"); if (chip) { filter = chip.dataset.s || null; return render(); }
+    const wk = t.closest("[data-week]"); if (wk) {
+      const days = schoolDays(), end = iso(addDays(parse(wk.dataset.week), 6));
+      ttDay = days.find(d => d >= wk.dataset.week && d <= end) || wk.dataset.week; return render();
+    }
+    const day = t.closest(".daybtn"); if (day) { ttDay = day.dataset.day; return render(); }
+    const chk = t.closest(".check"); if (chk) {
+      const id = chk.closest(".card").dataset.id;
+      done.has(id) ? done.delete(id) : done.add(id);
+      store.set(DONE_KEY, JSON.stringify([...done]));
+      return render();
+    }
+  });
+
+  const h = location.hash.slice(1);
+  if (["home","tt","hw"].includes(h)) tab = h;
+  const saved = store.get(PW_KEY);
+  if (saved) unlock(saved, true);
+})();
+</script>
+</body>
+</html>
