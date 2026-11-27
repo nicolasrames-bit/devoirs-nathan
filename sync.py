@@ -427,11 +427,20 @@ def find_key(obj: Any, patterns: tuple[str, ...]) -> Any:
 
 
 async def fetch_webtop(diagnostic: bool) -> tuple[list[dict], str, list[dict] | None]:
-    # WEBTOP_LOGIN=direct pour un identifiant Webtop ; par défaut : identification du ministère
-    cls = Webtop if env("WEBTOP_LOGIN").lower() == "direct" else WebtopMoE
-    wt = cls(env("WEBTOP_USERNAME"), env("WEBTOP_PASSWORD"), env("WEBTOP_DATA", DEFAULT_DATA))
+    # WEBTOP_LOGIN=direct (identifiant Webtop) / moe (ministère) ; vide = essaie direct puis ministère
+    mode = env("WEBTOP_LOGIN").lower()
+    args = (env("WEBTOP_USERNAME"), env("WEBTOP_PASSWORD"), env("WEBTOP_DATA", DEFAULT_DATA))
+    wt: Webtop = WebtopMoE(*args) if mode == "moe" else Webtop(*args)
     try:
-        await wt.login()
+        try:
+            await wt.login()
+        except RuntimeError as e:
+            if mode or isinstance(wt, WebtopMoE):
+                raise
+            log(f"  identifiant Webtop refusé ({str(e)[:80]}) → essai via le ministère")
+            await wt.close()
+            wt = WebtopMoE(*args)
+            await wt.login()
         log("✓ Connecté à Webtop")
         if diagnostic:
             log("LOGIN data:", json.dumps(skeleton(wt.login_data), ensure_ascii=False, indent=1))
