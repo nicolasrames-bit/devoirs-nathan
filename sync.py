@@ -680,6 +680,15 @@ async def fetch_webtop(diagnostic: bool) -> tuple[list[dict], str, list[dict] | 
                     log("LESSON item:", json.dumps(skeleton(it, max_depth=3), ensure_ascii=False))
                     log("  hourName ex.:", [h.get("hourName") for h in d0["hoursData"]][:3])
             h_items, h_lessons = normalize_lessons_weeks(resps)
+            if diagnostic:
+                stats: dict = {}
+                for r in resps:
+                    for d in r.get("data") or []:
+                        for h in d.get("hoursData") or []:
+                            for x in h.get("scheduale") or []:
+                                stats[x.get("statClass")] = stats.get(x.get("statClass"), 0) + 1
+                log("  statClass:", stats, "· sujets remplis:", sum(1 for l in h_lessons if l["topic"]),
+                    "· devoirs:", len(h_items))
             if STUDENT.get("backfill") and h_lessons:
                 STUDENT["backfill_done"] = True
             log(f"✓ Historique : semaines {weeks[0]}..{weeks[-1]} → {len(h_lessons)} cours, {len(h_items)} devoirs"
@@ -782,9 +791,9 @@ def hebrew_year(study_year: int) -> str:
     return letters[:-1] + "״" + letters[-1]
 
 
-LH_TOPIC = ("lessonsubject", "lessontopic", "subjectoflesson", "topic", "lessoncontent", "lessondescription")
+LH_TOPIC = ("descclass", "lessonsubject", "lessontopic", "subjectoflesson", "topic", "lessoncontent", "lessondescription")
 LH_HW = ("homeworkdata", "homework", "homeworktext", "homeworkcontent", "hwtext")
-LH_SUBJ = ("lesson", "subjectname", "studygroupname", "groupname", "professionname", "subject", "lessonname")
+LH_SUBJ = ("subject_name", "lesson", "subjectname", "studygroupname", "groupname", "professionname", "subject", "lessonname")
 
 
 def normalize_lessons_weeks(resps: list[Any]) -> tuple[list[dict], list[dict]]:
