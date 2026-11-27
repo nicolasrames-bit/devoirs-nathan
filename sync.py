@@ -33,7 +33,7 @@ from typing import Any
 ROOT = Path(__file__).parent
 OUT = ROOT / "out" / "site"
 TZ = dt.timezone(dt.timedelta(hours=2))  # Israël (l'heure exacte importe peu : on ne garde que des dates)
-KEEP_PAST_DAYS = 30
+KEEP_PAST_DAYS = 200
 PBKDF2_ITER = 250_000
 
 BASE_URL = "https://webtopserver.smartschool.co.il"
@@ -159,6 +159,16 @@ class Webtop:
             {"id": enc_id, "ClassCode": class_code, "ClassNumber": class_number},
         )
 
+    async def lessons_week(self, week_index: int, info: dict) -> dict:
+        year = int(info.get("studyYear") or 0)
+        return await self.post("/server/api/PupilCard/GetPupilLessonsAndHomework", {
+            "weekIndex": week_index, "viewType": 0, "studyYear": year,
+            "studyYearName": hebrew_year(year), "classCode": info.get("classCode"), "moduleID": 11,
+            "periodID": info.get("periodID"), "periodName": info.get("periodName"),
+            "studentID": info.get("id"),
+            "studentName": f"{info.get('lastName') or ''} {info.get('firstName') or ''}".strip(),
+        })
+
     async def schedule(self, week_index: int, study_year: int, enc_id: str, class_code: int) -> dict:
         return await self.post(
             "/server/api/PupilCard/GetPupilScheduale",
@@ -194,9 +204,13 @@ class WebtopSession(Webtop):
             raise SessionExpired("Session Webtop expirée ou invalide")
         wanted = env("WEBTOP_STUDENT_NAME")
         k = next((c for c in kids if wanted and wanted in f"{c.get('firstName')} {c.get('lastName')}"), kids[0])
+        divs = data.get("divisionsList") or []
+        cur = next((d for d in divs if d.get("isCurrent")), divs[0] if divs else {})
         self.login_data = {"id": k.get("id"), "classCode": k.get("classCode"),
                            "classNumber": k.get("classNum"), "firstName": k.get("firstName"),
-                           "studyYear": data.get("currentStudyYear")}
+                           "lastName": k.get("lastName"), "studyYear": data.get("currentStudyYear"),
+                           "periodID": cur.get("division_id"), "periodName": cur.get("division_name"),
+                           "periodFrom": cur.get("from_date"), "divisions": divs}
         log(f"✓ Session valide ({len(kids)} enfant(s) sur le compte)")
         return self.login_data
 
@@ -640,6 +654,45 @@ async def fetch_webtop(diagnostic: bool) -> tuple[list[dict], str, list[dict] | 
         except Exception as e:  # l'emploi du temps ne doit jamais bloquer les devoirs
             log(f"  ⚠ Emploi du temps non récupéré : {type(e).__name__}: {e}")
 
+        # Historique + semaines à venir (page « נושאי שיעור ושיעורי-בית »)
+        info = wt.login_data
+        if info.get("periodID"):
+            today = dt.datetime.now(TZ).date()
+            start = parse_date(info.get("periodFrom")) or (today - dt.timedelta(weeks=12))
+            back = min(26, max(1, (today - start).days // 7 + 1)) if STUDENT.get("backfill") else 1
+            weeks = list(range(-back, 2))
+            resps = []
+            for w in weeks:
+                try:
+                    r = await wt.lessons_week(w, info)
+                except Exception as e:
+                    log(f"  ⚠ semaine {w} : {type(e).__name__}")
+                    continue
+                if r.get("status") is False:
+                    log(f"  ⚠ semaine {w} : {r.get('errorDescription')}")
+                    continue
+                resps.append(r)
+            if diagnostic and resps:
+                d0 = next((d for r in resps for d in (r.get("data") or [])
+                           if any(h.get("scheduale") for h in d.get("hoursData") or [])), None)
+                if d0:
+                    it = next(x for h in d0["hoursData"] for x in (h.get("scheduale") or []))
+                    log("LESSON item:", json.dumps(skeleton(it, max_depth=3), ensure_ascii=False))
+                    log("  hourName ex.:", [h.get("hourName") for h in d0["hoursData"]][:3])
+            h_items, h_lessons = normalize_lessons_weeks(resps)
+            if STUDENT.get("backfill") and h_lessons:
+                STUDENT["backfill_done"] = True
+            log(f"✓ Historique : semaines {weeks[0]}..{weeks[-1]} → {len(h_lessons)} cours, {len(h_items)} devoirs"
+                f" (avec sujet : {sum(1 for l in h_lessons if l['topic'])})")
+            if h_lessons:
+                day_table = normalize_day_table(hw, today)
+                if day_table:  # le jour même, la réponse du tableau de bord est la plus fraîche
+                    t_items, t_lessons = day_table
+                    got = {l["date"] for l in t_lessons}
+                    h_lessons = [l for l in h_lessons if l["date"] not in got] + t_lessons
+                    h_items = [i for i in h_items if i["date"] not in got] + t_items
+                return h_items, first, h_lessons
+
         day_table = normalize_day_table(hw, dt.datetime.now(TZ).date())
         if day_table is not None:
             items, day_lessons = day_table
@@ -716,6 +769,69 @@ async def explore_ui(wt: "WebtopMoE", captured: list) -> None:
         for path, js in resps:
             if not path.endswith(skip):
                 log(f"  RESP {path} {json.dumps(skeleton(js, max_depth=6), ensure_ascii=False)}")
+
+
+def hebrew_year(study_year: int) -> str:
+    """2027 -> תשפ״ז (années 5700-5799 du calendrier hébraïque)."""
+    n = (study_year + 3760) % 100
+    tens = " יכלמנסעפצ"[n // 10].strip()
+    units = " אבגדהוזחט"[n % 10].strip()
+    if n % 100 in (15, 16):
+        tens, units = "ט", "ו" if n % 100 == 15 else "ז"
+    letters = "תש" + tens + units
+    return letters[:-1] + "״" + letters[-1]
+
+
+LH_TOPIC = ("lessonsubject", "lessontopic", "subjectoflesson", "topic", "lessoncontent", "lessondescription")
+LH_HW = ("homeworkdata", "homework", "homeworktext", "homeworkcontent", "hwtext")
+LH_SUBJ = ("lesson", "subjectname", "studygroupname", "groupname", "professionname", "subject", "lessonname")
+
+
+def normalize_lessons_weeks(resps: list[Any]) -> tuple[list[dict], list[dict]]:
+    """Réponses de GetPupilLessonsAndHomework -> (devoirs, cours)."""
+    items: dict[str, dict] = {}
+    lessons: dict[str, dict] = {}
+    for resp in resps:
+        days = resp.get("data") if isinstance(resp, dict) else None
+        for day in days if isinstance(days, list) else []:
+            d = parse_date(day.get("date")) if isinstance(day, dict) else None
+            if not d:
+                continue
+            iso = d.isoformat()
+            for hd in day.get("hoursData") or []:
+                hour = as_int(hd.get("hour"))
+                for it in hd.get("scheduale") or []:
+                    if not isinstance(it, dict):
+                        continue
+                    low = {k.lower(): v for k, v in it.items()}
+                    def first(keys):
+                        for k in keys:
+                            v = low.get(k)
+                            if isinstance(v, (str, int)) and str(v).strip():
+                                return clean(v)
+                        return ""
+                    subject = first(LH_SUBJ)
+                    if not subject:
+                        continue
+                    teacher = first(("teacher", "teachername", "teacherfullname"))
+                    topic = first(LH_TOPIC)
+                    hw = first(LH_HW)
+                    cancel = first(("cancelreason", "cancelationreason", "changereason"))
+                    status = first(("status", "lessonstatus"))
+                    cancelled = bool(cancel) or any(w in status for w in ("בוטל", "ביטול")) or \
+                        any("cancel" in k and v not in (None, False, 0, "", "0") and not isinstance(v, str) for k, v in low.items())
+                    times = re.findall(r"\d{1,2}:\d{2}", str(hd.get("hourName") or low.get("hourname") or ""))
+                    key = f"{iso}|{hour}|{subject}|{teacher}"
+                    lessons[key] = {"date": iso, "hour": hour, "start": as_time(times[0]) if times else "",
+                                    "end": as_time(times[1]) if len(times) > 1 else "", "subject": subject,
+                                    "teacher": teacher, "room": first(("roomname", "room", "classroom")),
+                                    "cancelled": cancelled, "note": cancel, "topic": topic}
+                    if hw:
+                        iid = item_id(iso, subject, hw)
+                        items[iid] = {"id": iid, "date": iso, "subject": subject, "content": hw,
+                                      "teacher": teacher, "topic": topic}
+    return (sorted(items.values(), key=lambda x: (x["date"], x["subject"])),
+            sorted(lessons.values(), key=lambda l: (l["date"], l["hour"] or 0)))
 
 
 def week_sunday(today: dt.date, week_index: int) -> dt.date:
@@ -1257,6 +1373,7 @@ def build_site(items: list[dict], lessons: list[dict], student: str, password: s
         "lessons": lessons,
         "exercises": exercises or [],
         "weekly": weekly or [],
+        "backfilled": bool(STUDENT.get("backfill_done")),
     }
     if warning:
         payload["warning"] = warning
@@ -1277,6 +1394,7 @@ async def main() -> int:
     today = dt.datetime.now(TZ).date()
     prev_payload = load_previous(family_pw)
     previous = prev_payload.get("items", [])
+    STUDENT["backfill"] = not prev_payload.get("backfilled") or env("BACKFILL") == "1"
     try:
         fresh, student, lessons = await fetch_webtop(diagnostic)
     except SessionExpired:
@@ -1297,7 +1415,7 @@ async def main() -> int:
     # Emploi du temps : les jours reçus remplacent les anciens ; on garde les autres jours (14 j)
     lessons = lessons or []
     got = {l["date"] for l in lessons}
-    keep_from = (today - dt.timedelta(days=14)).isoformat()
+    keep_from = (today - dt.timedelta(days=200)).isoformat()
     lessons = sorted(lessons + [l for l in prev_payload.get("lessons", [])
                                 if l["date"] not in got and l["date"] >= keep_from],
                      key=lambda l: (l["date"], l.get("hour") or 0, l.get("start") or ""))
