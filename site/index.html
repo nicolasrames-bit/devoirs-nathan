@@ -6,8 +6,8 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#f6f1e7">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="École">
-<title>École</title>
+<meta name="apple-mobile-web-app-title" content="🎒">
+<title>🎒</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎒</text></svg>">
 <style>
   :root{
@@ -21,26 +21,30 @@
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;background:var(--bg);color:var(--ink);
     font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Hebrew",Arial,sans-serif}
-  button{font:inherit;color:inherit}
+  button,select{font:inherit;color:inherit}
   .wrap{max-width:680px;margin:0 auto;padding:max(18px,env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom))}
   header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:8px 0 16px}
+  .tools{display:flex;gap:8px;align-items:center}
   h1{font-size:28px;line-height:1.1;margin:0;letter-spacing:-.02em}
   .sub{color:var(--muted);font-size:13px;margin-top:6px}
   .btn{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;font-size:14px;cursor:pointer}
+  .lang{appearance:none;-webkit-appearance:none;border:1px solid var(--line);background:var(--card);border-radius:999px;
+    padding:8px 12px;font-size:14px;cursor:pointer;text-align:center}
   .btn:active,.chip:active,.daybtn:active{transform:scale(.97)}
   section{margin-top:24px}
   h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px;font-weight:600;
-     display:flex;justify-content:space-between;align-items:baseline}
+     display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  [dir=rtl] h2{letter-spacing:0}
   h2.today{color:var(--today)}
-  h2 a{text-transform:none;letter-spacing:0;font-weight:500;color:var(--accent);text-decoration:none;cursor:pointer}
+  h2 a{text-transform:none;letter-spacing:0;font-weight:500;color:var(--accent);text-decoration:none;cursor:pointer;white-space:nowrap}
   .day{font-weight:600;font-size:15px;margin:14px 0 8px}
   .hero{font-size:22px;font-weight:700;letter-spacing:-.01em}
   .empty{background:var(--card);border:1px dashed var(--line);border-radius:var(--radius);padding:22px;text-align:center;color:var(--muted)}
 
   /* cartes devoirs */
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 14px 14px 16px;
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;padding-inline-start:16px;
     margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;position:relative;overflow:hidden}
-  .card::before{content:"";position:absolute;inset:0 auto 0 0;width:5px;background:var(--c,#999)}
+  .card::before{content:"";position:absolute;top:0;bottom:0;inset-inline-start:0;width:5px;background:var(--c,#999)}
   .card .body{flex:1;min-width:0}
   .subj{font-weight:700;font-size:15px}
   .content{white-space:pre-wrap;word-wrap:break-word;margin-top:4px}
@@ -63,9 +67,9 @@
   .lesson .lm{color:var(--muted);font-size:13px}
   .lesson .ln{font-size:13px;color:var(--today);margin-top:2px}
   .lesson.now{background:color-mix(in srgb, var(--accent) 9%, transparent)}
-  .lesson.now::after{content:"en cours";position:absolute;right:12px;top:12px;font-size:11px;font-weight:700;color:var(--accent)}
+  .lesson .nowtag{position:absolute;inset-inline-end:12px;top:10px;font-size:11px;font-weight:700;color:var(--accent)}
   .lesson.cancel .ls{text-decoration:line-through;color:var(--muted)}
-  .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--bad);color:#fff;margin-left:6px;vertical-align:2px}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--bad);color:#fff;margin-inline-start:6px;vertical-align:2px;text-decoration:none}
   .bag{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
   .bag span{background:var(--soft);border-radius:999px;padding:4px 10px;font-size:13px}
 
@@ -91,11 +95,10 @@
     backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);
     padding:6px 8px calc(6px + env(safe-area-inset-bottom));display:flex;justify-content:center}
   nav .in{display:flex;max-width:520px;width:100%}
-  nav button{flex:1;border:0;background:transparent;padding:6px 4px;cursor:pointer;color:var(--muted);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
+  nav button{position:relative;flex:1;border:0;background:transparent;padding:6px 4px;cursor:pointer;color:var(--muted);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
   nav button span{font-size:22px;line-height:1.1}
   nav button[aria-current="page"]{color:var(--accent);font-weight:600}
-  nav button{position:relative}
-  .count{position:absolute;top:2px;left:calc(50% + 8px);background:var(--today);color:#fff;border-radius:999px;font-size:10px;line-height:16px;min-width:16px;padding:0 4px;font-weight:700;font-style:normal}
+  .count{position:absolute;top:2px;inset-inline-start:calc(50% + 8px);background:var(--today);color:#fff;border-radius:999px;font-size:10px;line-height:16px;min-width:16px;padding:0 4px;font-weight:700;font-style:normal}
 
   /* écran mot de passe */
   .lock{min-height:80vh;display:grid;place-items:center}
@@ -103,6 +106,7 @@
   .lock .emoji{font-size:56px}
   .lock input{width:100%;font:inherit;font-size:17px;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);margin:16px 0 10px}
   .lock button{width:100%;padding:14px;border-radius:12px;border:0;background:var(--accent);color:#fff;font-weight:600;font-size:16px;cursor:pointer}
+  .lock .lang{margin-top:22px}
   .err{color:#dc2626;font-size:14px;min-height:20px;margin-top:8px}
   .hidden{display:none !important}
 </style>
@@ -112,45 +116,114 @@
   <div id="lock" class="lock">
     <form id="lockForm" autocomplete="on">
       <div class="emoji">🎒</div>
-      <h1 style="margin-top:8px">École</h1>
-      <div class="sub">Portail privé de la famille</div>
-      <input id="pw" type="password" placeholder="Mot de passe famille" autocomplete="current-password" required>
-      <button type="submit">Ouvrir</button>
+      <h1 style="margin-top:8px" data-t="school"></h1>
+      <div class="sub" data-t="portal"></div>
+      <input id="pw" type="password" autocomplete="current-password" required>
+      <button type="submit" data-t="open"></button>
       <div id="err" class="err"></div>
+      <select class="lang" aria-label="Language"></select>
     </form>
   </div>
 
   <div id="app" class="hidden">
     <header>
       <div>
-        <h1 id="title">École</h1>
+        <h1 id="title"></h1>
         <div class="sub" id="updated"></div>
       </div>
-      <button class="btn" id="reload" title="Recharger" aria-label="Recharger">↻</button>
+      <div class="tools">
+        <select class="lang" aria-label="Language"></select>
+        <button class="btn" id="reload">↻</button>
+      </div>
     </header>
     <main id="view"></main>
   </div>
 </div>
 
-<nav id="nav" class="hidden" aria-label="Sections">
+<nav id="nav" class="hidden">
   <div class="in">
-    <button data-tab="home"><span>🏠</span>Aujourd'hui</button>
-    <button data-tab="tt"><span>🗓️</span>Emploi du temps</button>
-    <button data-tab="hw"><span>📚</span>Devoirs<i id="hwCount"></i></button>
+    <button data-tab="home"><span>🏠</span><b data-t="navHome" style="font-weight:inherit"></b></button>
+    <button data-tab="tt"><span>🗓️</span><b data-t="navTT" style="font-weight:inherit"></b></button>
+    <button data-tab="hw"><span>📚</span><b data-t="navHW" style="font-weight:inherit"></b><i id="hwCount"></i></button>
   </div>
 </nav>
 
 <script>
 (() => {
-  const PW_KEY = "devoirs.pw", DONE_KEY = "devoirs.done";
+  // ---------- langues ----------
+  const LANGS = {
+    he: {label:"עברית", locale:"he-IL", dir:"rtl"},
+    fr: {label:"Français", locale:"fr-FR", dir:"ltr"},
+    en: {label:"English", locale:"en-GB", dir:"ltr"},
+    es: {label:"Español", locale:"es-ES", dir:"ltr"},
+  };
+  const T = {
+    school:      {fr:"École", he:"בית ספר", en:"School", es:"Escuela"},
+    portal:      {fr:"Portail privé de la famille", he:"פורטל משפחתי פרטי", en:"Private family portal", es:"Portal privado de la familia"},
+    password:    {fr:"Mot de passe famille", he:"סיסמת המשפחה", en:"Family password", es:"Contraseña familiar"},
+    open:        {fr:"Ouvrir", he:"כניסה", en:"Open", es:"Entrar"},
+    wrongPw:     {fr:"Mot de passe incorrect.", he:"סיסמה שגויה.", en:"Wrong password.", es:"Contraseña incorrecta."},
+    noData:      {fr:"Données introuvables pour l'instant.", he:"אין נתונים כרגע.", en:"No data yet.", es:"Todavía no hay datos."},
+    updated:     {fr:"Mis à jour", he:"עודכן", en:"Updated", es:"Actualizado"},
+    reload:      {fr:"Recharger", he:"רענון", en:"Reload", es:"Recargar"},
+    navHome:     {fr:"Aujourd'hui", he:"היום", en:"Today", es:"Hoy"},
+    navTT:       {fr:"Emploi du temps", he:"מערכת שעות", en:"Timetable", es:"Horario"},
+    navHW:       {fr:"Devoirs", he:"שיעורי בית", en:"Homework", es:"Deberes"},
+    today:       {fr:"Aujourd'hui", he:"היום", en:"Today", es:"Hoy"},
+    tomorrow:    {fr:"Demain", he:"מחר", en:"Tomorrow", es:"Mañana"},
+    thisWeek:    {fr:"Cette semaine", he:"השבוע", en:"This week", es:"Esta semana"},
+    nextWeek:    {fr:"Semaine prochaine", he:"שבוע הבא", en:"Next week", es:"Próxima semana"},
+    later:       {fr:"Plus tard", he:"בהמשך", en:"Later", es:"Más adelante"},
+    noSchool:    {fr:"Pas d'école aujourd'hui 🎉", he:"אין לימודים היום 🎉", en:"No school today 🎉", es:"Hoy no hay clase 🎉"},
+    details:     {fr:"Détail →", he:"← פרטים", en:"Details →", es:"Detalle →"},
+    hwTodo:      {fr:"Devoirs à faire", he:"שיעורי בית להכין", en:"Homework to do", es:"Deberes pendientes"},
+    seeAll:      {fr:"Tout voir →", he:"← הכל", en:"See all →", es:"Ver todo →"},
+    nothingToDo: {fr:"🎉 Rien à faire pour l'instant", he:"🎉 אין מה להכין כרגע", en:"🎉 Nothing to do right now", es:"🎉 Nada pendiente por ahora"},
+    noTT:        {fr:"L'emploi du temps n'est pas encore disponible.", he:"מערכת השעות עדיין לא זמינה.", en:"The timetable isn't available yet.", es:"El horario aún no está disponible."},
+    noLessons:   {fr:"Pas de cours ce jour-là", he:"אין שיעורים ביום הזה", en:"No lessons that day", es:"No hay clases ese día"},
+    hwOfDay:     {fr:"Devoirs de ce jour", he:"שיעורי בית ליום הזה", en:"Homework for this day", es:"Deberes de este día"},
+    now:         {fr:"en cours", he:"עכשיו", en:"now", es:"ahora"},
+    cancelled:   {fr:"Annulé", he:"בוטל", en:"Cancelled", es:"Cancelada"},
+    all:         {fr:"Tout", he:"הכל", en:"All", es:"Todo"},
+    noneUpcoming:{fr:"🎉 Aucun devoir à venir", he:"🎉 אין שיעורי בית בקרוב", en:"🎉 No upcoming homework", es:"🎉 No hay deberes próximos"},
+    previous:    {fr:"Jours précédents", he:"ימים קודמים", en:"Previous days", es:"Días anteriores"},
+    bag:         {fr:"Dans le cartable", he:"בתיק", en:"In the school bag", es:"En la mochila"},
+    markDone:    {fr:"Marquer comme fait", he:"סמן כבוצע", en:"Mark as done", es:"Marcar como hecho"},
+  };
+
+  const LANG_KEY = "devoirs.lang", PW_KEY = "devoirs.pw", DONE_KEY = "devoirs.done";
   const store = {
     get(k){ try { return localStorage.getItem(k); } catch { return null; } },
     set(k,v){ try { localStorage.setItem(k,v); } catch {} },
     del(k){ try { localStorage.removeItem(k); } catch {} },
   };
+  const guessLang = () => {
+    for (const l of (navigator.languages || [navigator.language || "fr"])) {
+      const c = l.slice(0,2).toLowerCase();
+      if (c === "iw") return "he";
+      if (LANGS[c]) return c;
+    }
+    return "fr";
+  };
+  let lang = LANGS[store.get(LANG_KEY)] ? store.get(LANG_KEY) : guessLang();
+  const t = k => (T[k] && (T[k][lang] ?? T[k].fr)) || k;
+  const loc = () => LANGS[lang].locale;
+
+  function applyLang(){
+    const L = LANGS[lang];
+    document.documentElement.lang = lang;
+    document.documentElement.dir = L.dir;
+    document.querySelectorAll("[data-t]").forEach(el => el.textContent = t(el.dataset.t));
+    $("pw").placeholder = t("password");
+    $("reload").title = t("reload"); $("reload").setAttribute("aria-label", t("reload"));
+    document.querySelectorAll("select.lang").forEach(s => {
+      s.innerHTML = Object.entries(LANGS).map(([k,v]) => `<option value="${k}" ${k===lang?"selected":""}>🌐 ${v.label}</option>`).join("");
+    });
+    if (data) render();
+  }
+
   let data = null, filter = null, tab = "home", ttDay = null;
   let done = new Set(JSON.parse(store.get(DONE_KEY) || "[]"));
-
   const $ = id => document.getElementById(id);
   const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 
@@ -179,7 +252,7 @@
       render();
     } catch (e) {
       if (silent) { store.del(PW_KEY); return; }
-      $("err").textContent = e.message === "fetch" ? "Données introuvables pour l'instant." : "Mot de passe incorrect.";
+      $("err").textContent = e.message === "fetch" ? t("noData") : t("wrongPw");
     }
   }
 
@@ -188,8 +261,8 @@
   const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
   const parse = s => new Date(s + "T12:00:00");
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
-  const fmtDay = s => cap(parse(s).toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"}));
-  const fmtShort = s => cap(parse(s).toLocaleDateString("fr-FR", {weekday:"short", day:"numeric", month:"short"}));
+  const fmtDay = s => cap(parse(s).toLocaleDateString(loc(), {weekday:"long", day:"numeric", month:"long"}));
+  const fmtShort = s => cap(parse(s).toLocaleDateString(loc(), {weekday:"short", day:"numeric", month:"short"}));
   const color = s => { let h = 0; for (const c of s) h = (h*31 + c.charCodeAt(0)) % 360; return `hsl(${h} 62% 48%)`; };
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const sunday = d => addDays(d, -d.getDay());
@@ -208,7 +281,7 @@
         <div class="content" dir="auto">${esc(it.content)}</div>
         ${it.teacher ? `<div class="teacher" dir="auto">${esc(it.teacher)}</div>` : ""}
       </div>
-      <button class="check" aria-label="Marquer comme fait">✓</button>
+      <button class="check" aria-label="${t("markDone")}">✓</button>
     </div>`;
   }
 
@@ -219,22 +292,23 @@
     return `<div class="lesson ${l.cancelled?"cancel":""} ${now?"now":""}" style="--c:${color(l.subject)}">
       <div class="h">${l.hour ?? "•"}</div>
       <div class="lb">
-        <div class="ls" dir="auto">${esc(l.subject)}${l.cancelled ? `<span class="badge">Annulé</span>` : ""}</div>
-        ${meta ? `<div class="lm" dir="ltr">${meta}</div>` : ""}
+        <div class="ls"><bdi>${esc(l.subject)}</bdi>${l.cancelled ? `<span class="badge">${t("cancelled")}</span>` : ""}</div>
+        ${meta ? `<div class="lm">${meta}</div>` : ""}
         ${l.note ? `<div class="ln" dir="auto">${esc(l.note)}</div>` : ""}
       </div>
+      ${now ? `<span class="nowtag">${t("now")}</span>` : ""}
     </div>`;
   }
 
-  const timetable = (day) => {
+  const timetable = day => {
     const ls = lessonsOn(day);
     return ls.length ? `<div class="tt">${ls.map(l => lessonRow(l, day === iso(new Date()))).join("")}</div>`
-                     : `<div class="empty">Pas de cours ce jour-là</div>`;
+                     : `<div class="empty">${t("noLessons")}</div>`;
   };
 
   const bag = day => {
     const subs = [...new Set(lessonsOn(day).filter(l => !l.cancelled).map(l => l.subject))];
-    return subs.length ? `<div class="bag" aria-label="Dans le cartable">🎒 ${subs.map(s => `<span dir="auto">${esc(s)}</span>`).join("")}</div>` : "";
+    return subs.length ? `<div class="bag" title="${t("bag")}" aria-label="${t("bag")}">🎒 ${subs.map(s => `<span dir="auto">${esc(s)}</span>`).join("")}</div>` : "";
   };
 
   // ---------- vues ----------
@@ -244,17 +318,11 @@
     const next = days.find(d => d > today);
     const upcoming = data.items.filter(i => i.date >= today && (!next || i.date <= next) && !done.has(i.id));
     let h = `<div class="hero">${fmtDay(today)}</div>`;
-
-    if (lessonsOn(today).length) {
-      h += `<section><h2 class="today">Aujourd'hui</h2>${timetable(today)}</section>`;
-    } else if (days.length) {
-      h += `<section><div class="empty">Pas d'école aujourd'hui 🎉</div></section>`;
-    }
-    if (next) {
-      h += `<section><h2>${fmtDay(next)} <a data-go="tt" data-day="${next}">Détail →</a></h2>${bag(next)}${timetable(next)}</section>`;
-    }
-    h += `<section><h2>Devoirs à faire <a data-go="hw">Tout voir →</a></h2>` +
-         (upcoming.length ? upcoming.map(i => hwCard(i, true)).join("") : `<div class="empty">🎉 Rien à faire pour l'instant</div>`) +
+    if (lessonsOn(today).length) h += `<section><h2 class="today">${t("today")}</h2>${timetable(today)}</section>`;
+    else if (days.length) h += `<section><div class="empty">${t("noSchool")}</div></section>`;
+    if (next) h += `<section><h2><span>${fmtDay(next)}</span><a data-go="tt" data-day="${next}">${t("details")}</a></h2>${bag(next)}${timetable(next)}</section>`;
+    h += `<section><h2><span>${t("hwTodo")}</span><a data-go="hw">${t("seeAll")}</a></h2>` +
+         (upcoming.length ? upcoming.map(i => hwCard(i, true)).join("") : `<div class="empty">${t("nothingToDo")}</div>`) +
          `</section>`;
     return h;
   }
@@ -262,33 +330,33 @@
   function viewTT(){
     const todayD = new Date(), today = iso(todayD);
     const days = schoolDays();
-    if (!days.length) return `<div class="empty">L'emploi du temps n'est pas encore disponible.</div>`;
+    if (!days.length) return `<div class="empty">${t("noTT")}</div>`;
     if (!ttDay) ttDay = days.find(d => d >= today) || days[days.length-1];
     const sun = sunday(parse(ttDay));
     const thisSun = iso(sunday(todayD)), nextSun = iso(addDays(sunday(todayD), 7));
     const week = [...Array(6)].map((_,i) => iso(addDays(sun, i)));
-    const hasNext = days.some(d => d >= nextSun);
     let h = "";
-    if (hasNext) h += `<div class="seg">
-        <button data-week="${thisSun}" aria-pressed="${iso(sun)===thisSun}">Cette semaine</button>
-        <button data-week="${nextSun}" aria-pressed="${iso(sun)===nextSun}">Semaine prochaine</button></div>`;
+    if (days.some(d => d >= nextSun)) h += `<div class="seg">
+        <button data-week="${thisSun}" aria-pressed="${iso(sun)===thisSun}">${t("thisWeek")}</button>
+        <button data-week="${nextSun}" aria-pressed="${iso(sun)===nextSun}">${t("nextWeek")}</button></div>`;
     h += `<div class="days">` + week.map(d => {
       const dd = parse(d);
+      const wd = dd.toLocaleDateString(loc(), {weekday:"short"}).replace(/\.$/, "").replace(/^יום /, "");
       return `<button class="daybtn ${d===today?"is-today":""}" data-day="${d}" aria-pressed="${d===ttDay}">
-        <small>${dd.toLocaleDateString("fr-FR",{weekday:"short"}).replace(".","")}</small><b>${dd.getDate()}</b></button>`;
+        <small>${wd}</small><b>${dd.getDate()}</b></button>`;
     }).join("") + `</div>`;
     h += `<h2 class="${ttDay===today?"today":""}">${fmtDay(ttDay)}</h2>${bag(ttDay)}${timetable(ttDay)}`;
     const hw = hwOn(ttDay);
-    if (hw.length) h += `<section><h2>Devoirs de ce jour</h2>${hw.map(i => hwCard(i)).join("")}</section>`;
+    if (hw.length) h += `<section><h2>${t("hwOfDay")}</h2>${hw.map(i => hwCard(i)).join("")}</section>`;
     return h;
   }
 
-  function group(title, items, cls=""){
+  function group(title, items, cls="", dayless=false){
     if (!items.length) return "";
     const byDay = {};
     items.forEach(i => (byDay[i.date] ||= []).push(i));
     const days = Object.keys(byDay).sort();
-    const showDay = days.length > 1 || !/Aujourd|Demain/.test(title);
+    const showDay = days.length > 1 || !dayless;
     return `<section>${title ? `<h2 class="${cls}">${title}</h2>` : ""}` + days.map(d =>
       (showDay ? `<div class="day">${fmtDay(d)}</div>` : "") + byDay[d].map(i => hwCard(i)).join("")
     ).join("") + `</section>`;
@@ -297,30 +365,30 @@
   function viewHW(){
     const subjects = [...new Set(data.items.map(i => i.subject))].sort();
     let h = subjects.length > 1
-      ? `<div class="chips">` + [`<button class="chip" aria-pressed="${!filter}" data-s="">Tout</button>`]
+      ? `<div class="chips">` + [`<button class="chip" aria-pressed="${!filter}" data-s="">${t("all")}</button>`]
           .concat(subjects.map(s => `<button class="chip" dir="auto" aria-pressed="${filter===s}" data-s="${esc(s)}">${esc(s)}</button>`)).join("") + `</div>`
       : "";
     const items = data.items.filter(i => !filter || i.subject === filter);
     const now = new Date(), t0 = iso(now), t1 = iso(addDays(now,1)), t7 = iso(addDays(now,7));
     const parts = [
-      group("Aujourd'hui", items.filter(i => i.date === t0), "today"),
-      group("Demain", items.filter(i => i.date === t1)),
-      group("Cette semaine", items.filter(i => i.date > t1 && i.date <= t7)),
-      group("Plus tard", items.filter(i => i.date > t7)),
+      group(t("today"), items.filter(i => i.date === t0), "today", true),
+      group(t("tomorrow"), items.filter(i => i.date === t1), "", true),
+      group(t("thisWeek"), items.filter(i => i.date > t1 && i.date <= t7)),
+      group(t("later"), items.filter(i => i.date > t7)),
     ].join("");
-    h += parts || `<div class="empty">🎉 Aucun devoir à venir</div>`;
+    h += parts || `<div class="empty">${t("noneUpcoming")}</div>`;
     const past = items.filter(i => i.date < t0).reverse();
-    if (past.length) h += `<details><summary>Jours précédents (${past.length})</summary>${group("", past)}</details>`;
+    if (past.length) h += `<details><summary>${t("previous")} (${past.length})</summary>${group("", past)}</details>`;
     return h;
   }
 
   function render(){
     const name = data.student || "";
-    $("title").textContent = name || "École";
-    document.title = name ? `École · ${name}` : "École";
+    $("title").textContent = name || t("school");
+    document.title = name ? `🎒 ${name}` : `🎒 ${t("school")}`;
     if (data.updated) {
       const u = new Date(data.updated);
-      $("updated").textContent = "Mis à jour " + u.toLocaleString("fr-FR", {weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+      $("updated").textContent = `${t("updated")} ` + u.toLocaleString(loc(), {weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
     }
     const today = iso(new Date());
     const todo = data.items.filter(i => i.date >= today && !done.has(i.id)).length;
@@ -329,26 +397,29 @@
     $("view").innerHTML = tab === "tt" ? viewTT() : tab === "hw" ? viewHW() : viewHome();
   }
 
-  function go(t, day){
-    tab = t; if (day) ttDay = day;
-    try { history.replaceState(null, "", "#" + t); } catch {}
+  function go(tb, day){
+    tab = tb; if (day) ttDay = day;
+    try { history.replaceState(null, "", "#" + tb); } catch {}
     render(); window.scrollTo(0, 0);
   }
 
   // ---------- événements ----------
+  document.querySelectorAll("select.lang").forEach(s => s.addEventListener("change", e => {
+    lang = e.target.value; store.set(LANG_KEY, lang); applyLang();
+  }));
   $("lockForm").addEventListener("submit", e => { e.preventDefault(); $("err").textContent = ""; unlock($("pw").value); });
   $("reload").addEventListener("click", () => { const p = store.get(PW_KEY); if (p) unlock(p); });
   $("nav").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) go(b.dataset.tab); });
   $("view").addEventListener("click", e => {
-    const t = e.target;
-    const link = t.closest("[data-go]"); if (link) return go(link.dataset.go, link.dataset.day);
-    const chip = t.closest(".chip"); if (chip) { filter = chip.dataset.s || null; return render(); }
-    const wk = t.closest("[data-week]"); if (wk) {
-      const days = schoolDays(), end = iso(addDays(parse(wk.dataset.week), 6));
-      ttDay = days.find(d => d >= wk.dataset.week && d <= end) || wk.dataset.week; return render();
+    const el = e.target;
+    const link = el.closest("[data-go]"); if (link) return go(link.dataset.go, link.dataset.day);
+    const chip = el.closest(".chip"); if (chip) { filter = chip.dataset.s || null; return render(); }
+    const wk = el.closest("[data-week]"); if (wk) {
+      const end = iso(addDays(parse(wk.dataset.week), 6));
+      ttDay = schoolDays().find(d => d >= wk.dataset.week && d <= end) || wk.dataset.week; return render();
     }
-    const day = t.closest(".daybtn"); if (day) { ttDay = day.dataset.day; return render(); }
-    const chk = t.closest(".check"); if (chk) {
+    const day = el.closest(".daybtn"); if (day) { ttDay = day.dataset.day; return render(); }
+    const chk = el.closest(".check"); if (chk) {
       const id = chk.closest(".card").dataset.id;
       done.has(id) ? done.delete(id) : done.add(id);
       store.set(DONE_KEY, JSON.stringify([...done]));
@@ -356,8 +427,9 @@
     }
   });
 
-  const h = location.hash.slice(1);
-  if (["home","tt","hw"].includes(h)) tab = h;
+  const hash = location.hash.slice(1);
+  if (["home","tt","hw"].includes(hash)) tab = hash;
+  applyLang();
   const saved = store.get(PW_KEY);
   if (saved) unlock(saved, true);
 })();
