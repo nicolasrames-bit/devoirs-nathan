@@ -180,6 +180,7 @@ class WebtopMoE(Webtop):
         self.username, self.password = username, password
         self.login_data: dict = {}
         self.captured: list[tuple[str, Any]] = []
+        self.requests: list[tuple[str, Any]] = []
         self.pw = self.browser = self.page = None
         log("  via identification ministère de l'Éducation (navigateur)")
 
@@ -213,6 +214,16 @@ class WebtopMoE(Webtop):
                 pass
 
         self.page.on("response", lambda r: asyncio.ensure_future(grab(r)))
+
+        def req(r):
+            if "webtopserver" in r.url and r.method == "POST":
+                try:
+                    body = r.post_data_json
+                except Exception:
+                    body = None
+                self.requests.append((r.url.split("?")[0].split(".co.il")[-1], body))
+
+        self.page.on("request", req)
 
     async def close(self) -> None:
         try:
@@ -359,6 +370,14 @@ class WebtopMoE(Webtop):
         log(f"✓ Connecté via le ministère ({len(self.captured)} réponses Webtop observées)")
         return self.login_data
 
+    async def explore(self, route: str) -> tuple[list, list]:
+        """Ouvre une page de Webtop et renvoie (requêtes, réponses) API qu'elle a déclenchées."""
+        nr, nc = len(self.requests), len(self.captured)
+        await self.page.goto(self.WEBTOP + route, wait_until="domcontentloaded", timeout=60000)
+        await self._settle(20000)
+        await asyncio.sleep(4)
+        return self.requests[nr:], self.captured[nc:]
+
     async def switch_student(self, student_id: Any) -> dict:
         res = await self.post(
             "/server/api/user/ChangeUser",
@@ -443,6 +462,8 @@ async def fetch_webtop(diagnostic: bool) -> tuple[list[dict], str, list[dict] | 
         hw = await wt.homework(enc_id, int(cc), int(cn))
         if diagnostic:
             log("HOMEWORK:", json.dumps(skeleton(hw), ensure_ascii=False, indent=1))
+            if isinstance(wt, WebtopMoE):
+                await explore_ui(wt, captured)
         if hw.get("status") is False:
             raise RuntimeError(f"GetHomeWork a échoué : {hw.get('errorDescription') or '?'}")
 
@@ -456,6 +477,42 @@ async def fetch_webtop(diagnostic: bool) -> tuple[list[dict], str, list[dict] | 
         return normalize(hw), first, lessons
     finally:
         await wt.close()
+
+
+def payload_shape(body: Any) -> Any:
+    """Forme d'un corps de requête : valeurs courtes/numériques/dates visibles, le reste masqué."""
+    if isinstance(body, dict):
+        return {k: payload_shape(v) for k, v in body.items()}
+    if isinstance(body, list):
+        return [payload_shape(v) for v in body[:2]]
+    if isinstance(body, (int, float, bool)) or body is None:
+        return body
+    s = str(body)
+    if re.fullmatch(r"[\d\-/:T. ]{1,30}", s) or len(s) <= 4:
+        return s
+    return f"str[{len(s)}]"
+
+
+async def explore_ui(wt: "WebtopMoE", captured: list) -> None:
+    """Diagnostic : liste le menu et observe les appels API des pages devoirs / emploi du temps."""
+    for js in captured:
+        items = find_key(js, ("menuitems",))
+        if items:
+            for it in items:
+                subs = [(s.get("title"), s.get("moduleFile")) for s in (it.get("subItems") or [])]
+                log(f"MENU {it.get('title')} -> {it.get('moduleFile')} {subs if subs else ''}")
+            break
+    for route in ("/Student_Card/11", "/Student_Card"):
+        try:
+            reqs, resps = await wt.explore(route)
+        except Exception as e:
+            log(f"EXPLORE {route}: erreur {type(e).__name__}")
+            continue
+        log(f"EXPLORE {route} -> page {re.sub(r'[?].*', '', wt.page.url)}")
+        for path, body in reqs:
+            log(f"  REQ {path} {json.dumps(payload_shape(body), ensure_ascii=False)}")
+        for path, js in resps:
+            log(f"  RESP {path} {json.dumps(skeleton(js, max_depth=5), ensure_ascii=False)}")
 
 
 def week_sunday(today: dt.date, week_index: int) -> dt.date:
