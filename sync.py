@@ -378,6 +378,23 @@ class WebtopMoE(Webtop):
         await asyncio.sleep(4)
         return self.requests[nr:], self.captured[nc:]
 
+    async def click_path(self, texts: list[str]) -> tuple[list, list]:
+        """Depuis l'accueil, clique successivement sur des liens/boutons par leur texte."""
+        nr, nc = len(self.requests), len(self.captured)
+        await self.page.goto(self.WEBTOP + "/Dashboard", wait_until="domcontentloaded", timeout=60000)
+        await self._settle(20000)
+        for t in texts:
+            el = await self._first_visible([f'a:has-text("{t}")', f'button:has-text("{t}")',
+                                            f'[role="link"]:has-text("{t}")', f'[role="menuitem"]:has-text("{t}")',
+                                            f'li:has-text("{t}")', f'span:has-text("{t}")'], 15000)
+            if not el:
+                log(f"  (lien « {t} » introuvable — page {re.sub(r'[?].*', '', self.page.url)})")
+                break
+            await el.click()
+            await self._settle(20000)
+            await asyncio.sleep(4)
+        return self.requests[nr:], self.captured[nc:]
+
     async def switch_student(self, student_id: Any) -> dict:
         res = await self.post(
             "/server/api/user/ChangeUser",
@@ -502,17 +519,36 @@ async def explore_ui(wt: "WebtopMoE", captured: list) -> None:
                 subs = [(s.get("title"), s.get("moduleFile")) for s in (it.get("subItems") or [])]
                 log(f"MENU {it.get('title')} -> {it.get('moduleFile')} {subs if subs else ''}")
             break
-    for route in ("/Student_Card/11", "/Student_Card"):
+    # Essai direct avec l'id renvoyé par GetSettingsList (peut différer de celui du login)
+    try:
+        st = await wt.post("/server/api/PupilCard/GetSettingsList", {})
+        kids = (st.get("data") or {}).get("children") or []
+        year = (st.get("data") or {}).get("currentStudyYear")
+        log(f"SETTINGS children={len(kids)} currentStudyYear={year}")
+        if kids:
+            k = kids[0]
+            hw = await wt.homework(k["id"], int(k["classCode"]), int(k["classNum"]))
+            log("HOMEWORK(settings id):", json.dumps(skeleton(hw, max_depth=5), ensure_ascii=False))
+            sc = await wt.schedule(0, int(year or 0), k["id"], int(k["classCode"]))
+            log("SCHEDULE(settings id):", json.dumps(skeleton(sc, max_depth=6), ensure_ascii=False))
+    except Exception as e:
+        log(f"SETTINGS erreur {type(e).__name__}: {e}")
+
+    for texts in (["כרטיס תלמיד", "נושאי שיעור ושיעורי-בית"], ["כרטיס תלמיד", "מערכת שעות"],
+                  ["מ.שעות ושינויים"]):
         try:
-            reqs, resps = await wt.explore(route)
+            reqs, resps = await wt.click_path(texts)
         except Exception as e:
-            log(f"EXPLORE {route}: erreur {type(e).__name__}")
+            log(f"CLICK {texts}: erreur {type(e).__name__}: {str(e)[:120]}")
             continue
-        log(f"EXPLORE {route} -> page {re.sub(r'[?].*', '', wt.page.url)}")
+        log(f"CLICK {' > '.join(texts)} -> page {re.sub(r'[?].*', '', wt.page.url)}")
+        skip = ("GetYearRange", "SaveStatistics", "GetInitData", "GetMenuCounters", "CheckToken")
         for path, body in reqs:
-            log(f"  REQ {path} {json.dumps(payload_shape(body), ensure_ascii=False)}")
+            if not path.endswith(skip):
+                log(f"  REQ {path} {json.dumps(payload_shape(body), ensure_ascii=False)}")
         for path, js in resps:
-            log(f"  RESP {path} {json.dumps(skeleton(js, max_depth=5), ensure_ascii=False)}")
+            if not path.endswith(skip):
+                log(f"  RESP {path} {json.dumps(skeleton(js, max_depth=6), ensure_ascii=False)}")
 
 
 def week_sunday(today: dt.date, week_index: int) -> dt.date:
