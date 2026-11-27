@@ -431,13 +431,25 @@ class WebtopForm(WebtopMoE):
         pwd = await self._first_visible(['input[type="password"]'], 15000)
         if not user or not pwd:
             await self._fail("formulaire Webtop")
+        # Diagnostic : structure du formulaire (attributs seulement, aucune valeur)
+        form_info = await p.evaluate("""() => ({
+            inputs: [...document.querySelectorAll('input')].filter(e => e.offsetParent).map(e =>
+                [e.type, e.getAttribute('formcontrolname'), e.name, e.id, e.placeholder].filter(Boolean).join('/')),
+            buttons: [...document.querySelectorAll('button')].filter(e => e.offsetParent).map(e =>
+                (e.innerText || '').trim().slice(0, 30) + ' [' + (e.type || '') + (e.disabled ? ',disabled' : '') + ']'),
+            recaptcha: !!document.querySelector('iframe[src*="recaptcha"], .g-recaptcha')
+        })""")
+        log(f"  formulaire : {json.dumps(form_info, ensure_ascii=False)}")
+        await user.click()
         await user.fill(self.username)
+        await pwd.click()
         await pwd.fill(self.password)
         await asyncio.sleep(1)
         btn = await self._first_visible(['button[type="submit"]:not(:has-text("משרד החינוך"))',
                                          'button:has-text("כניסה"):not(:has-text("משרד החינוך"))'], 10000)
         if not btn:
             await self._fail("bouton de connexion Webtop")
+        nreq = len(self.requests)
         await btn.click()
 
         loop = asyncio.get_event_loop()
@@ -450,6 +462,7 @@ class WebtopForm(WebtopMoE):
                 break
             await asyncio.sleep(1)
         if login_res is None:
+            log(f"  requêtes après le clic : {[pth for pth, _ in self.requests[nreq:]]}")
             await self._fail("réponse de connexion Webtop")
         req = next((b for path, b in reversed(self.requests) if path.endswith("LoginByUserNameAndPassword")), None)
         if isinstance(req, dict):
