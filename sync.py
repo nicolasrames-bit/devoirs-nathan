@@ -76,7 +76,15 @@ class Webtop:
             base_url=BASE_URL,
             timeout=30,
             follow_redirects=True,
-            headers={"Content-Type": "application/json; charset=utf-8"},
+            headers={
+                "Content-Type": "application/json; charset=utf-8",
+                "Accept": "application/json, text/plain, */*",
+                "Accept-Language": "he-IL,he;q=0.9,en;q=0.8",
+                "Origin": "https://webtop.smartschool.co.il",
+                "Referer": "https://webtop.smartschool.co.il/",
+                "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                               "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"),
+            },
         )
         self.login_data: dict = {}
 
@@ -86,7 +94,10 @@ class Webtop:
     async def post(self, path: str, body: dict) -> dict:
         r = await self.http.post(path, json=body)
         if r.status_code >= 400:
-            raise RuntimeError(f"Webtop {path} -> HTTP {r.status_code}")
+            # Infos techniques seulement (pare-feu, serveur) — jamais le corps d'une réponse réussie
+            hint = re.sub(r"<[^>]+>|\s+", " ", r.text)[:240].strip()
+            server = r.headers.get("server", "?")
+            raise RuntimeError(f"Webtop {path} -> HTTP {r.status_code} (server: {server}) {hint}")
         try:
             return r.json()
         except ValueError:
