@@ -246,6 +246,17 @@ class WebtopMoE(Webtop):
         except ValueError:
             raise RuntimeError(f"Webtop {path} -> réponse non JSON")
 
+    async def _settle(self, timeout: int = 15000) -> None:
+        """Attend que la page se calme, sans exiger un silence réseau total (le site garde des connexions ouvertes)."""
+        try:
+            await self.page.wait_for_load_state("load", timeout=timeout)
+        except Exception:
+            pass
+        try:
+            await self.page.wait_for_load_state("networkidle", timeout=5000)
+        except Exception:
+            pass
+
     async def _first_visible(self, selectors: list[str], timeout: int = 15000):
         deadline = asyncio.get_event_loop().time() + timeout / 1000
         while asyncio.get_event_loop().time() < deadline:
@@ -280,7 +291,8 @@ class WebtopMoE(Webtop):
     async def login(self) -> dict:
         await self._start()
         p = self.page
-        await p.goto(self.WEBTOP, wait_until="networkidle", timeout=60000)
+        await p.goto(self.WEBTOP, wait_until="domcontentloaded", timeout=60000)
+        await self._settle()
         if "could not be satisfied" in (await p.title()).lower():
             await self._fail("accès Webtop (bloqué)")
 
@@ -298,7 +310,7 @@ class WebtopMoE(Webtop):
             await p.wait_for_url("**lgn.edu.gov.il/**", timeout=60000)
         except Exception:
             await self._fail("redirection vers lgn.edu.gov.il")
-        await p.wait_for_load_state("networkidle", timeout=60000)
+        await self._settle()
 
         tab = await self._first_visible(
             ['[role="tab"]:has-text("קוד משתמש וסיסמה"):not(:has-text("חד פעמי"))'], 8000)
@@ -333,10 +345,7 @@ class WebtopMoE(Webtop):
             await asyncio.sleep(1)
         else:
             await self._fail("retour vers Webtop après connexion")
-        try:
-            await p.wait_for_load_state("networkidle", timeout=45000)
-        except Exception:
-            pass
+        await self._settle(20000)
         await asyncio.sleep(3)
 
         # Données de session : la réponse JSON capturée qui contient un token / un id élève
