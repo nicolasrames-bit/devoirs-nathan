@@ -1283,6 +1283,22 @@ JSON schema:
                  "hint": "...", "explain": "..."}}]}}"""
 
 
+REVIEW_PROMPT = """Topics the child studied in "{subject}" (from the school system, in Hebrew, most recent first):
+{topics}
+
+Grade: {grade} (age about {age}). Write {n} REVIEW exercises in Hebrew that revisit these topics, so the child
+remembers them. Spread the questions over several topics, with a little more weight on the most recent ones.
+Same rules as usual: "choice" (3-4 short options, one correct) or "input" (a number or one or two words), no
+images, short friendly sentences, a hint and a one-sentence explanation for each. If the subject does not lend
+itself to written exercises, return {{"exercises": []}}.
+
+JSON schema:
+{{"title": "short title in Hebrew (e.g. חזרה על ...)",
+  "exercises": [{{"type": "choice"|"input", "q": "...", "choices": ["..."], "answer": "...",
+                 "accept": ["..."], "hint": "...", "explain": "..."}}]}}"""
+NON_ACADEMIC = ("ספורט", "חינוך גופני", "אומנות", "אמנות", "מחול", "מוזיקה", "יום עתידים", "טקס", "טיול")
+
+
 def lesson_key(subject: str, topic: str, date: str) -> str:
     return hashlib.sha1(f"{date}|{subject}|{topic}".encode()).hexdigest()[:12]
 
@@ -1329,6 +1345,8 @@ def build_exercises(lessons: list[dict], items: list[dict], previous: list[dict]
                     ask=_ask_claude) -> list[dict]:
     keep_from = (today - dt.timedelta(days=KEEP_SETS_DAYS)).isoformat()
     sets = {s["key"]: s for s in previous if s.get("date", "") >= keep_from}
+    keep_from_rev = (today - dt.timedelta(days=21)).isoformat()
+    sets = {k: v for k, v in sets.items() if v.get("kind") != "review" or v.get("date", "") >= keep_from_rev}
     if not env("ANTHROPIC_API_KEY") and ask is _ask_claude:
         if not sets:
             log("• Exercices : pas de clé ANTHROPIC_API_KEY — étape ignorée")
@@ -1339,14 +1357,44 @@ def build_exercises(lessons: list[dict], items: list[dict], previous: list[dict]
     grade = as_int(env("STUDENT_GRADE")) or STUDENT.get("grade") or 3
     todo, seen = [], set()
     for l in lessons:
-        if l["date"] < since or l["date"] > today.isoformat() or l.get("cancelled"):
+        if l["date"] < since or l["date"] > today.isoformat() or l.get("cancelled") \
+                or any(w in l["subject"] for w in NON_ACADEMIC):
             continue
         key = lesson_key(l["subject"], l.get("topic", ""), l["date"])
         if key in sets or key in seen:
             continue
         seen.add(key)
         todo.append((key, l))
+    # Séries de révision : 1 par matière et par semaine, sur les sujets vus depuis le début du semestre
+    week = (today - dt.timedelta(days=(today.weekday() + 1) % 7)).isoformat()
+    by_subj: dict[str, list[tuple[str, str]]] = {}
+    for l in lessons:
+        if l.get("topic") and l["date"] <= today.isoformat() and not l.get("cancelled") \
+                and not any(w in l["subject"] for w in NON_ACADEMIC):
+            by_subj.setdefault(l["subject"], [])
+            if l["topic"] not in [t for _, t in by_subj[l["subject"]]]:
+                by_subj[l["subject"]].append((l["date"], l["topic"]))
+    reviews = []
+    for subj, tps in by_subj.items():
+        key = "rev-" + hashlib.sha1(f"{week}|{subj}".encode()).hexdigest()[:10]
+        if key not in sets and len(tps) >= 2:
+            tps = sorted(tps, reverse=True)[:25]
+            reviews.append((key, subj, tps))
+
     made = 0
+    for key, subj, tps in reviews[:3]:
+        prompt = REVIEW_PROMPT.format(subject=subj, grade=grade, age=grade + 5, n=6,
+                                      topics="\n".join(f"- {d}: {t}" for d, t in tps))
+        try:
+            res = ask(prompt)
+        except Exception as e:
+            log(f"  ⚠ Révision non générée : {type(e).__name__}: {str(e)[:120]}")
+            continue
+        sets[key] = {"key": key, "kind": "review", "date": today.isoformat(), "week": week, "subject": subj,
+                     "topic": "", "title": str(res.get("title") or f"חזרה – {subj}").strip(),
+                     "topics": [t for _, t in tps][:8], "exercises": valid_exercises(res.get("exercises"))}
+        made += 1
+
     for key, l in todo[:MAX_NEW_SETS]:
         prompt = EX_PROMPT.format(subject=l["subject"], topic=l.get("topic") or "(none)",
                                   homework=hw_by.get((l["date"], l["subject"])) or "(none)",

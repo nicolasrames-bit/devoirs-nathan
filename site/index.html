@@ -136,6 +136,12 @@
   .fb.bad{background:color-mix(in srgb, var(--bad) 10%, var(--card));border:1px solid color-mix(in srgb, var(--bad) 35%, transparent)}
   .fb b{display:block;margin-bottom:2px}
   .hintbox{margin-top:12px;color:var(--muted);font-size:15px}
+  .learn details{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:8px;padding:0 14px}
+  .learn summary{cursor:pointer;padding:12px 0;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:10px;margin:0;color:var(--ink);font-size:15px}
+  .learn summary::-webkit-details-marker{display:none}
+  .learn ul{margin:0 0 12px;padding-inline-start:18px}
+  .learn li{margin:3px 0}
+  .learn li small{color:var(--muted)}
   .end{text-align:center;padding:26px 10px}
   .end .stars{font-size:46px;letter-spacing:4px}
   .end .big{font-size:24px;font-weight:800;margin:8px 0 4px}
@@ -236,6 +242,11 @@
     goodAnswers: {fr:"bonnes réponses", he:"תשובות נכונות", en:"correct answers", es:"respuestas correctas"},
     again:       {fr:"Recommencer", he:"שוב", en:"Try again", es:"Otra vez"},
     back:        {fr:"Retour", he:"חזרה", en:"Back", es:"Volver"},
+    reviews:     {fr:"🔁 Révisions de la semaine", he:"🔁 חזרות השבוע", en:"🔁 This week's reviews", es:"🔁 Repasos de la semana"},
+    latest:      {fr:"✏️ Derniers cours", he:"✏️ השיעורים האחרונים", en:"✏️ Latest lessons", es:"✏️ Últimas clases"},
+    learned:     {fr:"📚 Ce qu'il a appris", he:"📚 מה למדנו", en:"📚 What was learned", es:"📚 Lo que aprendió"},
+    learnedSub:  {fr:"Sujets des cours depuis le début du semestre, par matière", he:"נושאי השיעורים מתחילת המחצית, לפי מקצוע", en:"Lesson topics since the start of the term, by subject", es:"Temas de las clases desde el inicio del semestre, por materia"},
+    topicsN:     {fr:"sujets", he:"נושאים", en:"topics", es:"temas"},
     usual:       {fr:"Horaire habituel", he:"מערכת קבועה", en:"Usual timetable", es:"Horario habitual"},
     markDone:    {fr:"Marquer comme fait", he:"סמן כבוצע", en:"Mark as done", es:"Marcar como hecho"},
   };
@@ -467,29 +478,56 @@
   const sets = () => (data.exercises || []).filter(s => s.exercises && s.exercises.length);
   const stars = (sc, n) => "⭐".repeat(Math.max(1, Math.round(3 * sc / n))) + "☆".repeat(3 - Math.max(1, Math.round(3 * sc / n)));
 
+  function setCard(s){
+    const r = exRes[s.key];
+    const meta = s.kind === "review" && s.topics && s.topics.length
+      ? `<bdi>${esc(s.subject)}</bdi> · <bdi>${s.topics.slice(0, 3).map(esc).join(", ")}${s.topics.length > 3 ? "…" : ""}</bdi>`
+      : `<bdi>${esc(s.subject)}</bdi> · ${s.exercises.length} ${t("questions")}`;
+    return `<div class="card" style="--c:${color(s.subject)}">
+      <button class="set" data-set="${s.key}" style="background:none;border:0;padding:0">
+        <span class="ico">${s.kind === "review" ? "🔁" : subjIcon(s.subject)}</span>
+        <span style="flex:1;min-width:0">
+          <div class="subj" dir="auto">${esc(s.title || s.subject)}</div>
+          <div class="meta">${meta}</div>
+        </span>
+        ${r ? `<span class="res">${stars(r.score, r.total)}</span>` : `<span style="font-size:22px">▶</span>`}
+      </button></div>`;
+  }
+
+  function learnedView(){
+    const bySubj = {};
+    data.lessons.filter(l => l.topic && !l.cancelled && l.date <= iso(new Date())).forEach(l => {
+      const arr = (bySubj[l.subject] ||= []);
+      if (!arr.some(x => x.topic === l.topic)) arr.push(l);
+    });
+    const subjects = Object.keys(bySubj).sort((a, b) => bySubj[b].length - bySubj[a].length);
+    if (!subjects.length) return "";
+    return `<section class="learn"><h2>${t("learned")}</h2><div class="sub" style="margin:-6px 0 10px">${t("learnedSub")}</div>` +
+      subjects.map(s => {
+        const items = bySubj[s].sort((a, b) => b.date.localeCompare(a.date));
+        return `<details><summary><span dir="auto">${subjIcon(s)} ${esc(s)}</span><span class="meta" style="font-weight:400;color:var(--muted)">${items.length} ${t("topicsN")}</span></summary>
+          <ul dir="auto">${items.map(l => `<li><bdi>${esc(l.topic)}</bdi> <small>· ${fmtShort(l.date)}</small></li>`).join("")}</ul></details>`;
+      }).join("") + `</section>`;
+  }
+
   function viewEx(){
     if (play) return viewPlayer();
     const list = sets();
-    if (!list.length) return `<div class="empty">${t("noEx")}</div>`;
-    let h = `<div class="sub" style="margin:-4px 0 14px">${t("exTitle")}</div>`;
-    const byDay = {};
-    list.forEach(s => (byDay[s.date] ||= []).push(s));
-    Object.keys(byDay).sort().reverse().forEach(d => {
-      h += `<div class="day">${fmtDay(d)}</div>`;
-      h += byDay[d].map(s => {
-        const r = exRes[s.key];
-        return `<div class="card" style="--c:${color(s.subject)}">
-          <button class="set" data-set="${s.key}" style="background:none;border:0;padding:0">
-            <span class="ico">${subjIcon(s.subject)}</span>
-            <span style="flex:1;min-width:0">
-              <div class="subj" dir="auto">${esc(s.title || s.subject)}</div>
-              <div class="meta" dir="auto">${esc(s.subject)} · ${s.exercises.length} ${t("questions")}</div>
-            </span>
-            ${r ? `<span class="res">${stars(r.score, r.total)}</span>` : `<span style="font-size:22px">▶</span>`}
-          </button></div>`;
-      }).join("");
-    });
-    return h;
+    const reviews = list.filter(s => s.kind === "review");
+    const daily = list.filter(s => s.kind !== "review");
+    let h = "";
+    if (!list.length) h += `<div class="empty">${t("noEx")}</div>`;
+    if (reviews.length) h += `<section style="margin-top:0"><h2>${t("reviews")}</h2>${reviews.map(setCard).join("")}</section>`;
+    if (daily.length) {
+      h += `<section><h2>${t("latest")}</h2>`;
+      const byDay = {};
+      daily.forEach(s => (byDay[s.date] ||= []).push(s));
+      Object.keys(byDay).sort().reverse().forEach(d => {
+        h += `<div class="day">${fmtDay(d)}</div>` + byDay[d].map(setCard).join("");
+      });
+      h += `</section>`;
+    }
+    return h + learnedView();
   }
 
   function viewPlayer(){
