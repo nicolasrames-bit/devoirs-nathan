@@ -451,6 +451,9 @@ class WebtopForm(WebtopMoE):
         if not btn:
             await self._fail("bouton de connexion Webtop")
         nreq = len(self.requests)
+        allreq: list[str] = []
+        p.on("request", lambda r: allreq.append(f"{r.method} {re.sub(r'[?].*', '', r.url)[:90]}")
+             if r.resource_type in ("xhr", "fetch", "document") else None)
         await btn.click(force=True)
 
         loop = asyncio.get_event_loop()
@@ -463,7 +466,14 @@ class WebtopForm(WebtopMoE):
                 break
             await asyncio.sleep(1)
         if login_res is None:
-            log(f"  requêtes après le clic : {[pth for pth, _ in self.requests[nreq:]]}")
+            log(f"  requêtes après le clic : {allreq[:15]}")
+            try:
+                errs = await p.evaluate("""() => [...document.querySelectorAll(
+                    'mat-error, .mat-mdc-form-field-error, snack-bar-container, .mat-mdc-snack-bar-label, [role=alert], .error, .toast-message')]
+                    .map(e => (e.innerText || '').trim()).filter(Boolean).slice(0, 5)""")
+                log(f"  messages à l'écran : {errs}")
+            except Exception:
+                pass
             await self._fail("réponse de connexion Webtop")
         req = next((b for path, b in reversed(self.requests) if path.endswith("LoginByUserNameAndPassword")), None)
         if isinstance(req, dict):
