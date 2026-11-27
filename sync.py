@@ -528,9 +528,22 @@ async def explore_ui(wt: "WebtopMoE", captured: list) -> None:
         if kids:
             k = kids[0]
             hw = await wt.homework(k["id"], int(k["classCode"]), int(k["classNum"]))
-            log("HOMEWORK(settings id):", json.dumps(skeleton(hw, max_depth=5), ensure_ascii=False))
+            log("HOMEWORK(settings id):", json.dumps(skeleton(hw, max_depth=5), ensure_ascii=False),
+                "| allowToViewThis =", (hw.get("data") or {}).get("allowToViewThis"),
+                "| erreur =", hw.get("errorDescription"))
             sc = await wt.schedule(0, int(year or 0), k["id"], int(k["classCode"]))
-            log("SCHEDULE(settings id):", json.dumps(skeleton(sc, max_depth=6), ensure_ascii=False))
+            log("SCHEDULE(settings id): erreur =", sc.get("errorDescription"))
+        dash = await wt.dashboard()
+        flags = {k2: v for k2, v in (dash.get("data") or {}).items() if k2.startswith("allow")}
+        log("DASHBOARD flags:", flags)
+        for ep in ("/server/api/dashboard/ShotefSchedualeDataForToday",
+                   "/server/api/dashboard/ChangesAndMessagesDataForToday"):
+            try:
+                r = await wt.post(ep, {})
+                log(f"TRY {ep}:", json.dumps(skeleton(r, max_depth=6), ensure_ascii=False),
+                    "| erreur =", r.get("errorDescription"))
+            except Exception as e:
+                log(f"TRY {ep}: {type(e).__name__} {str(e)[:120]}")
     except Exception as e:
         log(f"SETTINGS erreur {type(e).__name__}: {e}")
 
