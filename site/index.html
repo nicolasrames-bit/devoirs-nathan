@@ -110,6 +110,35 @@
   .err{color:#dc2626;font-size:14px;min-height:20px;margin-top:8px}
   .warn{background:color-mix(in srgb, var(--today) 14%, var(--card));border:1px solid color-mix(in srgb, var(--today) 40%, transparent);
     border-radius:12px;padding:10px 14px;font-size:14px;margin:0 0 14px}
+  /* exercices */
+  .set{display:flex;align-items:center;gap:12px;cursor:pointer;width:100%;text-align:start;font:inherit;color:inherit}
+  .set .ico{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px;
+    background:color-mix(in srgb, var(--c) 16%, transparent)}
+  .set .meta{color:var(--muted);font-size:13px}
+  .set .res{flex:none;font-size:13px;font-weight:700;color:var(--ok)}
+  .player .top{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .bar{flex:1;height:8px;background:var(--soft);border-radius:999px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .3s}
+  .qcard{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px}
+  .qnum{color:var(--muted);font-size:13px;font-weight:600;margin-bottom:6px}
+  .q{font-size:21px;font-weight:700;line-height:1.35;margin-bottom:16px;white-space:pre-wrap}
+  .opts{display:grid;gap:10px}
+  .opt{border:2px solid var(--line);background:var(--card);border-radius:14px;padding:14px 16px;font-size:18px;cursor:pointer;text-align:start}
+  .opt.good{border-color:var(--ok);background:color-mix(in srgb, var(--ok) 14%, var(--card))}
+  .opt.bad{border-color:var(--bad);background:color-mix(in srgb, var(--bad) 12%, var(--card))}
+  .opt:disabled{cursor:default}
+  .ans{width:100%;font:inherit;font-size:20px;padding:14px 16px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--ink)}
+  .act{display:flex;gap:10px;margin-top:14px}
+  .primary{flex:1;border:0;background:var(--accent);color:#fff;border-radius:14px;padding:14px;font-size:17px;font-weight:700;cursor:pointer}
+  .ghost{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:14px 16px;font-size:15px;cursor:pointer}
+  .fb{margin-top:14px;border-radius:14px;padding:12px 14px;font-size:15px}
+  .fb.good{background:color-mix(in srgb, var(--ok) 14%, var(--card));border:1px solid color-mix(in srgb, var(--ok) 40%, transparent)}
+  .fb.bad{background:color-mix(in srgb, var(--bad) 10%, var(--card));border:1px solid color-mix(in srgb, var(--bad) 35%, transparent)}
+  .fb b{display:block;margin-bottom:2px}
+  .hintbox{margin-top:12px;color:var(--muted);font-size:15px}
+  .end{text-align:center;padding:26px 10px}
+  .end .stars{font-size:46px;letter-spacing:4px}
+  .end .big{font-size:24px;font-weight:800;margin:8px 0 4px}
   .hidden{display:none !important}
 </style>
 </head>
@@ -147,6 +176,7 @@
     <button data-tab="home"><span>🏠</span><b data-t="navHome" style="font-weight:inherit"></b></button>
     <button data-tab="tt"><span>🗓️</span><b data-t="navTT" style="font-weight:inherit"></b></button>
     <button data-tab="hw"><span>📚</span><b data-t="navHW" style="font-weight:inherit"></b><i id="hwCount"></i></button>
+    <button data-tab="ex"><span>🧠</span><b data-t="navEx" style="font-weight:inherit"></b></button>
   </div>
 </nav>
 
@@ -191,6 +221,21 @@
     previous:    {fr:"Jours précédents", he:"ימים קודמים", en:"Previous days", es:"Días anteriores"},
     bag:         {fr:"Dans le cartable", he:"בתיק", en:"In the school bag", es:"En la mochila"},
     expired:     {fr:"⚠️ La connexion à Webtop a expiré : les infos ne sont plus mises à jour. Un parent doit se reconnecter.", he:"⚠️ החיבור ל-Webtop פג: המידע לא מתעדכן. הורה צריך להתחבר מחדש.", en:"⚠️ The Webtop session expired: info is no longer updating. A parent needs to sign in again.", es:"⚠️ La sesión de Webtop caducó: la información ya no se actualiza. Un padre debe volver a conectarse."},
+    navEx:       {fr:"Exercices", he:"תרגול", en:"Practice", es:"Ejercicios"},
+    exTitle:     {fr:"S'entraîner sur les derniers cours", he:"מתרגלים את השיעורים האחרונים", en:"Practise the latest lessons", es:"Practica las últimas clases"},
+    noEx:        {fr:"Pas encore d'exercices : ils arrivent après les prochains cours.", he:"עדיין אין תרגילים – הם יגיעו אחרי השיעורים הבאים.", en:"No exercises yet: they'll come after the next lessons.", es:"Aún no hay ejercicios: llegarán después de las próximas clases."},
+    questions:   {fr:"questions", he:"שאלות", en:"questions", es:"preguntas"},
+    question:    {fr:"Question", he:"שאלה", en:"Question", es:"Pregunta"},
+    check:       {fr:"Vérifier", he:"בדיקה", en:"Check", es:"Comprobar"},
+    next:        {fr:"Suivant", he:"הבא", en:"Next", es:"Siguiente"},
+    hint:        {fr:"💡 Indice", he:"💡 רמז", en:"💡 Hint", es:"💡 Pista"},
+    yourAnswer:  {fr:"Ta réponse…", he:"התשובה שלך…", en:"Your answer…", es:"Tu respuesta…"},
+    correct:     {fr:"Bravo ! 🎉", he:"!כל הכבוד 🎉", en:"Well done! 🎉", es:"¡Muy bien! 🎉"},
+    wrong:       {fr:"Pas tout à fait. Réponse :", he:"לא בדיוק. התשובה:", en:"Not quite. Answer:", es:"Casi. Respuesta:"},
+    finished:    {fr:"Terminé !", he:"!סיימת", en:"All done!", es:"¡Terminado!"},
+    goodAnswers: {fr:"bonnes réponses", he:"תשובות נכונות", en:"correct answers", es:"respuestas correctas"},
+    again:       {fr:"Recommencer", he:"שוב", en:"Try again", es:"Otra vez"},
+    back:        {fr:"Retour", he:"חזרה", en:"Back", es:"Volver"},
     markDone:    {fr:"Marquer comme fait", he:"סמן כבוצע", en:"Mark as done", es:"Marcar como hecho"},
   };
 
@@ -226,6 +271,9 @@
   }
 
   let data = null, filter = null, tab = "home", ttDay = null;
+  const EX_KEY = "devoirs.ex";
+  let exRes = JSON.parse(store.get(EX_KEY) || "{}");
+  let play = null;   // {key, i, score, answered, picked, hint}
   let done = new Set(JSON.parse(store.get(DONE_KEY) || "[]"));
   const $ = id => document.getElementById(id);
   const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
@@ -387,6 +435,97 @@
     return h;
   }
 
+  // ---------- exercices ----------
+  const SUBJ_ICONS = [["חשבון","🔢"],["מתמטיקה","🔢"],["עברית","📝"],["לשון","📝"],["אנגלית","🇬🇧"],["מדע","🔬"],
+                      ["תורה","📜"],["תנ\"ך","📜"],["מולדת","🗺️"],["גאוגרפיה","🗺️"],["היסטוריה","🏛️"]];
+  const subjIcon = s => (SUBJ_ICONS.find(([k]) => s.includes(k)) || [0,"✏️"])[1];
+  const norm = s => String(s ?? "").toLowerCase().replace(/[\u0591-\u05C7]/g, "")
+      .replace(/[\s.,!?'"׳״\-–:;()]/g, "").replace(/^ה(?=\S{2,})/, "");
+  const isRight = (ex, val) => {
+    const ok = [ex.answer, ...(ex.accept || [])].map(norm);
+    return ok.includes(norm(val)) || (norm(val) !== "" && ok.some(a => a.replace(/^ה/, "") === norm(val)));
+  };
+  // Expressions mathématiques toujours lues de gauche à droite, même dans un texte en hébreu
+  const mathEsc = s => esc(s).replace(/[\d(][\d\s+\-−–×x*÷/:=.,()?_]*[\d)_]/g,
+      m => /[+\-−–×*÷/:=]/.test(m) ? `<span dir="ltr" style="unicode-bidi:isolate">${m}</span>` : m);
+  const sets = () => (data.exercises || []).filter(s => s.exercises && s.exercises.length);
+  const stars = (sc, n) => "⭐".repeat(Math.max(1, Math.round(3 * sc / n))) + "☆".repeat(3 - Math.max(1, Math.round(3 * sc / n)));
+
+  function viewEx(){
+    if (play) return viewPlayer();
+    const list = sets();
+    if (!list.length) return `<div class="empty">${t("noEx")}</div>`;
+    let h = `<div class="sub" style="margin:-4px 0 14px">${t("exTitle")}</div>`;
+    const byDay = {};
+    list.forEach(s => (byDay[s.date] ||= []).push(s));
+    Object.keys(byDay).sort().reverse().forEach(d => {
+      h += `<div class="day">${fmtDay(d)}</div>`;
+      h += byDay[d].map(s => {
+        const r = exRes[s.key];
+        return `<div class="card" style="--c:${color(s.subject)}">
+          <button class="set" data-set="${s.key}" style="background:none;border:0;padding:0">
+            <span class="ico">${subjIcon(s.subject)}</span>
+            <span style="flex:1;min-width:0">
+              <div class="subj" dir="auto">${esc(s.title || s.subject)}</div>
+              <div class="meta" dir="auto">${esc(s.subject)} · ${s.exercises.length} ${t("questions")}</div>
+            </span>
+            ${r ? `<span class="res">${stars(r.score, r.total)}</span>` : `<span style="font-size:22px">▶</span>`}
+          </button></div>`;
+      }).join("");
+    });
+    return h;
+  }
+
+  function viewPlayer(){
+    const s = sets().find(x => x.key === play.key);
+    if (!s) { play = null; return viewEx(); }
+    const n = s.exercises.length;
+    if (play.i >= n) {
+      return `<div class="qcard end">
+        <div class="stars" dir="ltr">${stars(play.score, n)}</div>
+        <div class="big">${t("finished")}</div>
+        <div class="sub" style="font-size:16px">${play.score} / ${n} ${t("goodAnswers")}</div>
+        <div class="act"><button class="ghost" data-exback>${t("back")}</button><button class="primary" data-exagain>${t("again")}</button></div>
+      </div>`;
+    }
+    const ex = s.exercises[play.i];
+    const done = play.answered;
+    let body = "";
+    if (ex.type === "choice") {
+      body = `<div class="opts" dir="auto">` + ex.choices.map((c, k) => {
+        let cls = "";
+        if (done) cls = c === ex.answer ? "good" : (k === play.picked ? "bad" : "");
+        return `<button class="opt ${cls}" data-opt="${k}" dir="auto" ${done ? "disabled" : ""}>${mathEsc(c)}</button>`;
+      }).join("") + `</div>`;
+    } else {
+      body = `<input class="ans" id="ans" dir="auto" autocomplete="off" placeholder="${t("yourAnswer")}" ${done ? "disabled" : ""} value="${esc(play.typed || "")}">`;
+    }
+    const fb = done ? `<div class="fb ${play.right ? "good" : "bad"}" dir="auto">
+        <b>${play.right ? t("correct") : `${t("wrong")} <bdi>${mathEsc(ex.answer)}</bdi>`}</b>${mathEsc(ex.explain || "")}</div>` : "";
+    const hint = !done && play.hint && ex.hint ? `<div class="hintbox" dir="auto">💡 ${mathEsc(ex.hint)}</div>` : "";
+    const actions = done
+      ? `<button class="primary" data-exnext>${t("next")}</button>`
+      : `${ex.hint && !play.hint ? `<button class="ghost" data-exhint>${t("hint")}</button>` : ""}` +
+        (ex.type === "input" ? `<button class="primary" data-excheck>${t("check")}</button>` : "");
+    return `<div class="player">
+      <div class="top"><button class="btn" data-exback aria-label="${t("back")}">✕</button>
+        <div class="bar"><i style="width:${Math.round(100 * play.i / n)}%"></i></div></div>
+      <div class="qcard" style="--c:${color(s.subject)}">
+        <div class="qnum">${t("question")} ${play.i + 1}/${n} · <bdi>${esc(s.subject)}</bdi></div>
+        <div class="q" dir="auto">${mathEsc(ex.q)}</div>
+        ${body}${hint}${fb}
+        <div class="act">${actions}</div>
+      </div></div>`;
+  }
+
+  function answer(val, picked){
+    const s = sets().find(x => x.key === play.key), ex = s.exercises[play.i];
+    play.answered = true; play.picked = picked; play.typed = val;
+    play.right = isRight(ex, val);
+    if (play.right) play.score++;
+    render();
+  }
+
   function render(){
     const name = data.student || "";
     $("title").textContent = name || t("school");
@@ -399,12 +538,13 @@
     const todo = data.items.filter(i => i.date >= today && !done.has(i.id)).length;
     $("hwCount").textContent = todo || ""; $("hwCount").className = todo ? "count" : "";
     document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
-    $("view").innerHTML = (data.warning === "session_expired" ? `<div class="warn">${t("expired")}</div>` : "")
-      + (tab === "tt" ? viewTT() : tab === "hw" ? viewHW() : viewHome());
+    $("view").innerHTML = (data.warning === "session_expired" && !play ? `<div class="warn">${t("expired")}</div>` : "")
+      + (tab === "tt" ? viewTT() : tab === "hw" ? viewHW() : tab === "ex" ? viewEx() : viewHome());
+    const inp = $("ans"); if (inp && !inp.disabled) inp.focus();
   }
 
   function go(tb, day){
-    tab = tb; if (day) ttDay = day;
+    tab = tb; if (day) ttDay = day; play = null;
     try { history.replaceState(null, "", "#" + tb); } catch {}
     render(); window.scrollTo(0, 0);
   }
@@ -416,10 +556,32 @@
   $("lockForm").addEventListener("submit", e => { e.preventDefault(); $("err").textContent = ""; unlock($("pw").value); });
   $("reload").addEventListener("click", () => { const p = store.get(PW_KEY); if (p) unlock(p); });
   $("nav").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) go(b.dataset.tab); });
+  $("view").addEventListener("keydown", e => {
+    if (e.key === "Enter" && e.target.id === "ans" && e.target.value.trim()) answer(e.target.value);
+  });
   $("view").addEventListener("click", e => {
     const el = e.target;
     const link = el.closest("[data-go]"); if (link) return go(link.dataset.go, link.dataset.day);
     const chip = el.closest(".chip"); if (chip) { filter = chip.dataset.s || null; return render(); }
+    const st = el.closest("[data-set]"); if (st) { play = {key: st.dataset.set, i: 0, score: 0}; window.scrollTo(0,0); return render(); }
+    if (el.closest("[data-exback]")) { play = null; return render(); }
+    if (el.closest("[data-exagain]")) { play = {key: play.key, i: 0, score: 0}; return render(); }
+    if (el.closest("[data-exhint]")) { play.hint = true; return render(); }
+    const opt = el.closest("[data-opt]"); if (opt && play && !play.answered) {
+      const ex = sets().find(x => x.key === play.key).exercises[play.i];
+      return answer(ex.choices[+opt.dataset.opt], +opt.dataset.opt);
+    }
+    if (el.closest("[data-excheck]")) { const v = ($("ans") || {}).value || ""; if (v.trim()) answer(v); return; }
+    if (el.closest("[data-exnext]")) {
+      const s = sets().find(x => x.key === play.key);
+      play = {key: play.key, i: play.i + 1, score: play.score};
+      if (play.i >= s.exercises.length) {
+        const prev = exRes[play.key];
+        if (!prev || play.score >= prev.score) exRes[play.key] = {score: play.score, total: s.exercises.length};
+        store.set(EX_KEY, JSON.stringify(exRes));
+      }
+      return render();
+    }
     const wk = el.closest("[data-week]"); if (wk) {
       const end = iso(addDays(parse(wk.dataset.week), 6));
       ttDay = schoolDays().find(d => d >= wk.dataset.week && d <= end) || wk.dataset.week; return render();
@@ -434,7 +596,7 @@
   });
 
   const hash = location.hash.slice(1);
-  if (["home","tt","hw"].includes(hash)) tab = hash;
+  if (["home","tt","hw","ex"].includes(hash)) tab = hash;
   applyLang();
   const saved = store.get(PW_KEY);
   if (saved) unlock(saved, true);

@@ -37,6 +37,7 @@ KEEP_PAST_DAYS = 30
 PBKDF2_ITER = 250_000
 
 BASE_URL = "https://webtopserver.smartschool.co.il"
+STUDENT: dict[str, Any] = {}
 DEFAULT_DATA = "+Aabe7FAdVluG6Lu+0ibrA=="
 
 
@@ -631,6 +632,7 @@ async def fetch_webtop(diagnostic: bool) -> tuple[list[dict], str, list[dict] | 
             raise RuntimeError(f"GetHomeWork a échoué : {hw.get('errorDescription') or '?'}")
 
         first = str(wt.login_data.get("firstName") or wanted or "")
+        STUDENT["grade"] = as_int(cc) if as_int(cc) and 1 <= as_int(cc) <= 12 else None
 
         lessons: list[dict] | None = None
         try:
@@ -1081,8 +1083,125 @@ def sync_calendar(items: list[dict], today: dt.date, student: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Exercices adaptés aux cours (API Claude). Seuls matière / sujet / devoirs sont envoyés.
+# --------------------------------------------------------------------------- #
+EXERCISE_DAYS = 3          # cours des N derniers jours
+KEEP_SETS_DAYS = 14
+MAX_NEW_SETS = 6           # par synchro
+EX_SYSTEM = (
+    "You write short practice exercises for a child in an Israeli elementary school. "
+    "You reply with a single JSON object and nothing else."
+)
+EX_PROMPT = """Lesson information (from the school system, in Hebrew):
+- subject: {subject}
+- lesson topic: {topic}
+- homework given: {homework}
+- grade: {grade}
+
+Write {n} exercises in Hebrew that help the child practise exactly this lesson, at the right level for
+grade {grade} (age about {age}). Rules:
+- If the topic is empty or vague, use typical grade-{grade} content of the Israeli curriculum for the subject.
+- If the subject does not lend itself to written exercises (sport, physical education, art, music, ceremonies,
+  class/education hour "חינוך", trips), return {{"exercises": []}}.
+- For English lessons, the questions may be in simple English with Hebrew instructions.
+- Mix types: "choice" (3 or 4 short options, exactly one correct) and "input" (answer is a number or one or
+  two words). No images, no tables, nothing that needs a drawing.
+- Short, friendly, clear sentences. Each exercise has a short hint and a one-sentence explanation of the answer.
+
+JSON schema:
+{{"title": "short title of the topic in Hebrew",
+  "exercises": [{{"type": "choice"|"input", "q": "...", "choices": ["..."] (only for choice),
+                 "answer": "...", "accept": ["other accepted spellings"] (optional, input only),
+                 "hint": "...", "explain": "..."}}]}}"""
+
+
+def lesson_key(subject: str, topic: str, date: str) -> str:
+    return hashlib.sha1(f"{date}|{subject}|{topic}".encode()).hexdigest()[:12]
+
+
+def _ask_claude(prompt: str) -> dict:
+    import httpx
+
+    r = httpx.post(
+        "https://api.anthropic.com/v1/messages",
+        headers={"x-api-key": env("ANTHROPIC_API_KEY"), "anthropic-version": "2023-06-01",
+                 "content-type": "application/json"},
+        json={"model": env("ANTHROPIC_MODEL", "claude-sonnet-5-5"), "max_tokens": 2000,
+              "system": EX_SYSTEM, "messages": [{"role": "user", "content": prompt}]},
+        timeout=90,
+    )
+    if r.status_code >= 400:
+        raise RuntimeError(f"API Claude HTTP {r.status_code}: {r.text[:200]}")
+    text = "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
+    m = re.search(r"\{.*\}", text, re.S)
+    if not m:
+        raise RuntimeError("réponse sans JSON")
+    return json.loads(m.group())
+
+
+def valid_exercises(raw: Any) -> list[dict]:
+    out = []
+    for e in (raw or [])[:6]:
+        if not isinstance(e, dict) or not str(e.get("q", "")).strip() or not str(e.get("answer", "")).strip():
+            continue
+        kind = "choice" if e.get("type") == "choice" and isinstance(e.get("choices"), list) else "input"
+        ex = {"type": kind, "q": str(e["q"]).strip(), "answer": str(e["answer"]).strip(),
+              "hint": str(e.get("hint") or "").strip(), "explain": str(e.get("explain") or "").strip()}
+        if kind == "choice":
+            ex["choices"] = [str(c).strip() for c in e["choices"] if str(c).strip()][:4]
+            if ex["answer"] not in ex["choices"] or len(ex["choices"]) < 2:
+                continue
+        else:
+            ex["accept"] = [str(a).strip() for a in (e.get("accept") or []) if str(a).strip()][:5]
+        out.append(ex)
+    return out
+
+
+def build_exercises(lessons: list[dict], items: list[dict], previous: list[dict], today: dt.date,
+                    ask=_ask_claude) -> list[dict]:
+    keep_from = (today - dt.timedelta(days=KEEP_SETS_DAYS)).isoformat()
+    sets = {s["key"]: s for s in previous if s.get("date", "") >= keep_from}
+    if not env("ANTHROPIC_API_KEY") and ask is _ask_claude:
+        if not sets:
+            log("• Exercices : pas de clé ANTHROPIC_API_KEY — étape ignorée")
+        return sorted(sets.values(), key=lambda s: s["date"], reverse=True)
+
+    since = (today - dt.timedelta(days=EXERCISE_DAYS - 1)).isoformat()
+    hw_by = {(i["date"], i["subject"]): i["content"] for i in items}
+    grade = as_int(env("STUDENT_GRADE")) or STUDENT.get("grade") or 3
+    todo, seen = [], set()
+    for l in lessons:
+        if l["date"] < since or l["date"] > today.isoformat() or l.get("cancelled"):
+            continue
+        key = lesson_key(l["subject"], l.get("topic", ""), l["date"])
+        if key in sets or key in seen:
+            continue
+        seen.add(key)
+        todo.append((key, l))
+    made = 0
+    for key, l in todo[:MAX_NEW_SETS]:
+        prompt = EX_PROMPT.format(subject=l["subject"], topic=l.get("topic") or "(none)",
+                                  homework=hw_by.get((l["date"], l["subject"])) or "(none)",
+                                  grade=grade, age=grade + 5, n=4)
+        try:
+            res = ask(prompt)
+        except Exception as e:
+            log(f"  ⚠ Exercices non générés pour un cours : {type(e).__name__}: {str(e)[:120]}")
+            continue
+        exs = valid_exercises(res.get("exercises"))
+        # même un résultat vide est mémorisé, pour ne pas redemander (sport, art…)
+        sets[key] = {"key": key, "date": l["date"], "subject": l["subject"], "topic": l.get("topic", ""),
+                     "title": str(res.get("title") or l.get("topic") or l["subject"]).strip(),
+                     "exercises": exs}
+        made += 1
+    if made:
+        log(f"✓ Exercices : {made} nouvelle(s) série(s) (niveau : classe {grade})")
+    return sorted(sets.values(), key=lambda s: (s["date"], s["subject"]), reverse=True)
+
+
+# --------------------------------------------------------------------------- #
 def build_site(items: list[dict], lessons: list[dict], student: str, password: str,
-               warning: str = "", updated: str = "") -> None:
+               warning: str = "", updated: str = "", exercises: list[dict] | None = None) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for f in (ROOT / "site").iterdir():
         if f.is_file():
@@ -1092,6 +1211,7 @@ def build_site(items: list[dict], lessons: list[dict], student: str, password: s
         "student": student,
         "items": items,
         "lessons": lessons,
+        "exercises": exercises or [],
     }
     if warning:
         payload["warning"] = warning
@@ -1118,7 +1238,7 @@ async def main() -> int:
         log("⚠ Session Webtop expirée : on republie les dernières données avec un avertissement")
         build_site(prev_payload.get("items", []), prev_payload.get("lessons", []),
                    prev_payload.get("student", ""), family_pw, warning="session_expired",
-                   updated=prev_payload.get("updated", ""))
+                   updated=prev_payload.get("updated", ""), exercises=prev_payload.get("exercises", []))
         return 0
     log(f"✓ {len(fresh)} devoirs reçus de Webtop")
 
@@ -1136,7 +1256,8 @@ async def main() -> int:
                                 if l["date"] not in got and l["date"] >= keep_from],
                      key=lambda l: (l["date"], l.get("hour") or 0, l.get("start") or ""))
 
-    build_site(items, lessons, student, family_pw)
+    exercises = build_exercises(lessons, items, prev_payload.get("exercises", []), today)
+    build_site(items, lessons, student, family_pw, exercises=exercises)
     sync_calendar(items, today, student)
     return 0
 

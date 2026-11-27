@@ -103,6 +103,18 @@ Ainsi, personne d'autre ne peut faire exécuter quoi que ce soit sur ton ordinat
 Au prochain lancement, les devoirs apparaissent comme événements « 📚 Matière (Nathan) » sur la journée.
 Si un devoir à venir disparaît de Webtop, il est aussi retiré de l'agenda.
 
+## 5. Exercices adaptés (optionnel)
+
+À chaque synchro, pour les cours des 3 derniers jours, Claude génère 4 petites questions en hébreu sur le sujet
+du cours (onglet **🧠 Exercices** du portail). Seuls la matière, le sujet du cours et le texte des devoirs sont
+envoyés — jamais le nom de l'enfant. Chaque cours n'est traité qu'une fois.
+
+1. <https://console.anthropic.com> → crée un compte → **Billing** : ajoute un petit crédit (quelques dollars suffisent pour longtemps).
+2. **API Keys → Create Key** → copie la clé.
+3. Secret GitHub **`ANTHROPIC_API_KEY`** = cette clé.
+4. Le niveau est détecté automatiquement ; pour le forcer : **Settings → Secrets and variables → Actions → onglet Variables**
+   → `STUDENT_GRADE` = `3` (par exemple).
+
 ---
 
 ## Dépannage

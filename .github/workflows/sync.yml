@@ -51,6 +51,8 @@ jobs:
           WEBTOP_PASSWORD: ${{ secrets.WEBTOP_PASSWORD }}
           WEBTOP_LOGIN: ${{ secrets.WEBTOP_LOGIN || vars.WEBTOP_LOGIN }}
           WEBTOP_SESSION: ${{ secrets.WEBTOP_SESSION }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          STUDENT_GRADE: ${{ vars.STUDENT_GRADE }}
           WEBTOP_DATA: ${{ secrets.WEBTOP_DATA }}
           WEBTOP_CLASS_CODE: ${{ secrets.WEBTOP_CLASS_CODE }}
           WEBTOP_CLASS_NUMBER: ${{ secrets.WEBTOP_CLASS_NUMBER }}
