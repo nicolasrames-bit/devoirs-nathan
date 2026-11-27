@@ -1309,7 +1309,8 @@ KEEP_SETS_DAYS = 14
 MAX_NEW_SETS = 6           # par synchro
 EX_SYSTEM = (
     "You write short practice exercises for a child in an Israeli elementary school. "
-    "You reply with a single JSON object and nothing else."
+    "You reply with a single valid JSON object and nothing else. Inside text values never use the ASCII "
+    "double quote character; for Hebrew abbreviations (תנ״ך, צה״ל) use ״."
 )
 EX_PROMPT = """Lesson information (from the school system, in Hebrew):
 - subject: {subject}
@@ -1371,7 +1372,21 @@ def _ask_claude(prompt: str) -> dict:
     m = re.search(r"\{.*\}", text, re.S)
     if not m:
         raise RuntimeError("réponse sans JSON")
-    return json.loads(m.group())
+    raw = m.group()
+    try:
+        return json.loads(raw)
+    except ValueError:
+        # Guillemet ASCII au milieu d'un mot hébreu (תנ"ך, צה"ל…) -> gershayim
+        fixed = re.sub(r'(?<=[\u0590-\u05FF])"(?=[\u0590-\u05FF])', "״", raw)
+        return json.loads(fixed)
+
+
+def ask_with_retry(prompt: str) -> dict:
+    try:
+        return _ask_claude(prompt)
+    except ValueError:
+        return _ask_claude(prompt + "\n\nIMPORTANT: output strictly valid JSON. Never put an ASCII double quote "
+                                     "inside a text value; for Hebrew abbreviations use the character ״.")
 
 
 def valid_exercises(raw: Any) -> list[dict]:
@@ -1393,12 +1408,13 @@ def valid_exercises(raw: Any) -> list[dict]:
 
 
 def build_exercises(lessons: list[dict], items: list[dict], previous: list[dict], today: dt.date,
-                    ask=_ask_claude) -> list[dict]:
+                    ask=None) -> list[dict]:
+    ask = ask or ask_with_retry
     keep_from = (today - dt.timedelta(days=KEEP_SETS_DAYS)).isoformat()
     sets = {s["key"]: s for s in previous if s.get("date", "") >= keep_from}
     keep_from_rev = (today - dt.timedelta(days=21)).isoformat()
     sets = {k: v for k, v in sets.items() if v.get("kind") != "review" or v.get("date", "") >= keep_from_rev}
-    if not env("ANTHROPIC_API_KEY") and ask is _ask_claude:
+    if not env("ANTHROPIC_API_KEY") and ask is ask_with_retry:
         if not sets:
             log("• Exercices : pas de clé ANTHROPIC_API_KEY — étape ignorée")
         return sorted(sets.values(), key=lambda s: s["date"], reverse=True)
@@ -1463,6 +1479,9 @@ def build_exercises(lessons: list[dict], items: list[dict], previous: list[dict]
         made += 1
     if made:
         log(f"✓ Exercices : {made} nouvelle(s) série(s) (niveau : classe {grade})")
+    ok = [v for v in sets.values() if v.get("exercises")]
+    log(f"  au total : {len(ok)} séries, {sum(len(v['exercises']) for v in ok)} questions "
+        f"({sum(1 for v in ok if v.get('kind') == 'review')} révisions)")
     return sorted(sets.values(), key=lambda s: (s["date"], s["subject"]), reverse=True)
 
 
