@@ -166,6 +166,203 @@ class Webtop:
         )
 
 
+class WebtopMoE(Webtop):
+    """
+    Connexion par l'identification du ministère de l'Éducation (lgn.edu.gov.il), dans un vrai
+    navigateur invisible (Edge/Chrome via Playwright). Les appels API sont ensuite faits depuis
+    la page Webtop elle-même, avec la session du navigateur.
+    Parcours inspiré de la lib open-source webtop-il-kit.
+    """
+
+    WEBTOP = "https://webtop.smartschool.co.il"
+
+    def __init__(self, username: str, password: str, data: str) -> None:  # noqa: D401
+        self.username, self.password = username, password
+        self.login_data: dict = {}
+        self.captured: list[tuple[str, Any]] = []
+        self.pw = self.browser = self.page = None
+        log("  via identification ministère de l'Éducation (navigateur)")
+
+    async def _start(self) -> None:
+        from playwright.async_api import async_playwright
+
+        self.pw = await async_playwright().start()
+        last = None
+        for kw in ({"channel": "msedge"}, {"channel": "chrome"}, {}):
+            try:
+                self.browser = await self.pw.chromium.launch(
+                    headless=True, args=["--disable-blink-features=AutomationControlled"], **kw)
+                break
+            except Exception as e:
+                last = e
+        if not self.browser:
+            raise RuntimeError(f"Aucun navigateur utilisable (Edge/Chrome) : {last}")
+        ctx = await self.browser.new_context(
+            locale="he-IL", timezone_id="Asia/Jerusalem", viewport={"width": 1280, "height": 900},
+            user_agent=("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like "
+                        "Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0"),
+        )
+        await ctx.add_init_script("Object.defineProperty(navigator,'webdriver',{get:()=>undefined})")
+        self.page = await ctx.new_page()
+
+        async def grab(resp):
+            try:
+                if "webtopserver" in resp.url and "json" in (resp.headers.get("content-type") or ""):
+                    self.captured.append((resp.url.split("?")[0].split(".co.il")[-1], await resp.json()))
+            except Exception:
+                pass
+
+        self.page.on("response", lambda r: asyncio.ensure_future(grab(r)))
+
+    async def close(self) -> None:
+        try:
+            if self.browser:
+                await self.browser.close()
+        finally:
+            if self.pw:
+                await self.pw.stop()
+
+    async def _set_token(self, token: str) -> None:  # type: ignore[override]
+        await self.page.context.add_cookies([
+            {"name": "webToken", "value": token, "domain": "webtopserver.smartschool.co.il",
+             "path": "/", "secure": True, "sameSite": "None"}])
+
+    async def post(self, path: str, body: dict) -> dict:
+        res = await self.page.evaluate(
+            """async ([url, body]) => {
+                 const r = await fetch(url, {method: 'POST', credentials: 'include',
+                   headers: {'Content-Type': 'application/json; charset=utf-8',
+                             'Accept': 'application/json, text/plain, */*'},
+                   body: JSON.stringify(body)});
+                 return {status: r.status, text: await r.text()};
+               }""",
+            [BASE_URL + path, body],
+        )
+        if res["status"] >= 400:
+            hint = re.sub(r"<[^>]+>|\s+", " ", res["text"])[:200].strip()
+            raise RuntimeError(f"Webtop {path} -> HTTP {res['status']} {hint}")
+        try:
+            return json.loads(res["text"])
+        except ValueError:
+            raise RuntimeError(f"Webtop {path} -> réponse non JSON")
+
+    async def _first_visible(self, selectors: list[str], timeout: int = 15000):
+        deadline = asyncio.get_event_loop().time() + timeout / 1000
+        while asyncio.get_event_loop().time() < deadline:
+            for sel in selectors:
+                loc = self.page.locator(sel)
+                try:
+                    n = await loc.count()
+                    for i in range(n):
+                        if await loc.nth(i).is_visible():
+                            return loc.nth(i)
+                except Exception:
+                    pass
+            await asyncio.sleep(0.5)
+        return None
+
+    async def _fail(self, step: str) -> None:
+        p = self.page
+        host = re.sub(r"\?.*", "", p.url) if p else "?"
+        title = await p.title() if p else "?"
+        body = ""
+        try:
+            text = await p.inner_text("body")
+            # On ne garde que les lignes qui ressemblent à des messages d'erreur
+            body = " | ".join(l.strip() for l in text.splitlines()
+                              if any(w in l for w in ("שגוי", "שגיאה", "נכשל", "חסום", "לא תקין", "אנא",
+                                                      "error", "Error", "invalid")))[:300]
+        except Exception:
+            pass
+        raise RuntimeError(f"Connexion ministère échouée à l'étape « {step} » — page: {host} — "
+                           f"titre: {title} — messages: {body or '(aucun)'}")
+
+    async def login(self) -> dict:
+        await self._start()
+        p = self.page
+        await p.goto(self.WEBTOP, wait_until="networkidle", timeout=60000)
+        if "could not be satisfied" in (await p.title()).lower():
+            await self._fail("accès Webtop (bloqué)")
+
+        cookie_btn = await self._first_visible(['button:has-text("אשר cookies")'], 3000)
+        if cookie_btn:
+            await cookie_btn.click()
+
+        moe = await self._first_visible(['button:has-text("הזדהות משרד החינוך")',
+                                         'a:has-text("הזדהות משרד החינוך")',
+                                         'button:has-text("משרד החינוך")'], 30000)
+        if not moe:
+            await self._fail("bouton ministère")
+        await moe.click()
+        try:
+            await p.wait_for_url("**lgn.edu.gov.il/**", timeout=60000)
+        except Exception:
+            await self._fail("redirection vers lgn.edu.gov.il")
+        await p.wait_for_load_state("networkidle", timeout=60000)
+
+        tab = await self._first_visible(
+            ['[role="tab"]:has-text("קוד משתמש וסיסמה"):not(:has-text("חד פעמי"))'], 8000)
+        if tab:
+            await tab.click()
+            await asyncio.sleep(1)
+
+        user = await self._first_visible(['input[formcontrolname*="username" i]',
+                                          'input[aria-label*="קוד המשתמש"]',
+                                          'input[type="text"]:not([readonly])'], 20000)
+        pwd = await self._first_visible(['input[type="password"]'], 20000)
+        if not user or not pwd:
+            await self._fail("formulaire identifiant / mot de passe")
+        await user.fill(self.username)
+        await pwd.click()
+        await pwd.fill(self.password)
+        await asyncio.sleep(1.5)
+
+        btn = await self._first_visible(['button[type="submit"]:has-text("כניסה")',
+                                         'button:has-text("כניסה"):not([role="tab"])'], 10000)
+        if not btn:
+            await self._fail("bouton כניסה")
+        await btn.click()
+
+        # Retour sur Webtop (hors page de login)
+        loop = asyncio.get_event_loop()
+        deadline = loop.time() + 90
+        while loop.time() < deadline:
+            url = p.url.lower()
+            if "webtop.smartschool.co.il" in url and "login" not in url:
+                break
+            await asyncio.sleep(1)
+        else:
+            await self._fail("retour vers Webtop après connexion")
+        try:
+            await p.wait_for_load_state("networkidle", timeout=45000)
+        except Exception:
+            pass
+        await asyncio.sleep(3)
+
+        # Données de session : la réponse JSON capturée qui contient un token / un id élève
+        for _, js in reversed(self.captured):
+            d = js.get("data") if isinstance(js, dict) else None
+            if isinstance(d, dict) and ("token" in d or "studentId" in d):
+                self.login_data = d
+                break
+        if self.login_data.get("token"):
+            await self._set_token(self.login_data["token"])
+        log(f"✓ Connecté via le ministère ({len(self.captured)} réponses Webtop observées)")
+        return self.login_data
+
+    async def switch_student(self, student_id: Any) -> dict:
+        res = await self.post(
+            "/server/api/user/ChangeUser",
+            {"StudentId": student_id, "institutionCode": None, "savedUser": "", "userType": None},
+        )
+        data = res.get("data") or {}
+        if data.get("token"):
+            await self._set_token(data["token"])
+        if data:
+            self.login_data = data
+        return data
+
+
 def find_key(obj: Any, patterns: tuple[str, ...]) -> Any:
     """Cherche récursivement la première clé dont le nom (minuscule) est dans patterns."""
     if isinstance(obj, dict):
@@ -185,12 +382,17 @@ def find_key(obj: Any, patterns: tuple[str, ...]) -> Any:
 
 
 async def fetch_webtop(diagnostic: bool) -> tuple[list[dict], str, list[dict] | None]:
-    wt = Webtop(env("WEBTOP_USERNAME"), env("WEBTOP_PASSWORD"), env("WEBTOP_DATA", DEFAULT_DATA))
+    # WEBTOP_LOGIN=direct pour un identifiant Webtop ; par défaut : identification du ministère
+    cls = Webtop if env("WEBTOP_LOGIN").lower() == "direct" else WebtopMoE
+    wt = cls(env("WEBTOP_USERNAME"), env("WEBTOP_PASSWORD"), env("WEBTOP_DATA", DEFAULT_DATA))
     try:
         await wt.login()
         log("✓ Connecté à Webtop")
         if diagnostic:
             log("LOGIN data:", json.dumps(skeleton(wt.login_data), ensure_ascii=False, indent=1))
+            for path, js in getattr(wt, "captured", []):
+                log(f"CAPTURED {path}:", json.dumps(skeleton(js, max_depth=3), ensure_ascii=False))
+        captured = [js for _, js in getattr(wt, "captured", [])]
 
         # Compte parent avec plusieurs enfants -> choisir le bon
         wanted = env("WEBTOP_STUDENT_NAME")
@@ -217,9 +419,9 @@ async def fetch_webtop(diagnostic: bool) -> tuple[list[dict], str, list[dict] | 
             log("DASHBOARD:", json.dumps(skeleton(dash), ensure_ascii=False, indent=1))
 
         enc_id = wt.login_data.get("id") or wt.login_data.get("studentId")
-        cc = env("WEBTOP_CLASS_CODE") or find_key([wt.login_data, dash], ("classcode",))
+        cc = env("WEBTOP_CLASS_CODE") or find_key([wt.login_data, dash, *captured], ("classcode",))
         cn = env("WEBTOP_CLASS_NUMBER") or find_key(
-            [wt.login_data, dash], ("classnumber", "classnum")
+            [wt.login_data, dash, *captured], ("classnumber", "classnum")
         )
         log(f"  id élève: {'ok' if enc_id else 'MANQUANT'} · classCode: {'ok' if cc else 'MANQUANT'}"
             f" · classNumber: {'ok' if cn else 'MANQUANT'}")
