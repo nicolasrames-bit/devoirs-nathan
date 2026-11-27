@@ -440,17 +440,18 @@ class WebtopForm(WebtopMoE):
             recaptcha: !!document.querySelector('iframe[src*="recaptcha"], .g-recaptcha')
         })""")
         log(f"  formulaire : {json.dumps(form_info, ensure_ascii=False)}")
-        await user.click()
-        await user.fill(self.username)
-        await pwd.click()
-        await pwd.fill(self.password)
+        # Frappe « humaine » pour déclencher la validation du formulaire Angular
+        await user.focus()
+        await user.press_sequentially(self.username, delay=60)
+        await pwd.focus()
+        await pwd.press_sequentially(self.password, delay=60)
         await asyncio.sleep(1)
         btn = await self._first_visible(['button[type="submit"]:not(:has-text("משרד החינוך"))',
                                          'button:has-text("כניסה"):not(:has-text("משרד החינוך"))'], 10000)
         if not btn:
             await self._fail("bouton de connexion Webtop")
         nreq = len(self.requests)
-        await btn.click()
+        await btn.click(force=True)
 
         loop = asyncio.get_event_loop()
         deadline = loop.time() + 60
