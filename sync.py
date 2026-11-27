@@ -182,7 +182,8 @@ class WebtopMoE(Webtop):
         self.captured: list[tuple[str, Any]] = []
         self.requests: list[tuple[str, Any]] = []
         self.pw = self.browser = self.page = None
-        log("  via identification ministère de l'Éducation (navigateur)")
+        if type(self) is WebtopMoE:
+            log("  via identification ministère de l'Éducation (navigateur)")
 
     async def _start(self) -> None:
         from playwright.async_api import async_playwright
@@ -408,6 +409,65 @@ class WebtopMoE(Webtop):
         return data
 
 
+class WebtopForm(WebtopMoE):
+    """Connexion avec l'identifiant Webtop, en remplissant le vrai formulaire du site (le site
+    fournit lui-même la clé « Data » propre à l'école)."""
+
+    def __init__(self, username: str, password: str, data: str) -> None:
+        super().__init__(username, password, data)
+        log("  (formulaire Webtop dans le navigateur)")
+
+    async def login(self) -> dict:
+        await self._start()
+        p = self.page
+        await p.goto(self.WEBTOP, wait_until="domcontentloaded", timeout=60000)
+        await self._settle()
+        cookie_btn = await self._first_visible(['button:has-text("אשר cookies")'], 3000)
+        if cookie_btn:
+            await cookie_btn.click()
+
+        user = await self._first_visible(['input[formcontrolname*="user" i]', 'input[name*="user" i]',
+                                          'input[id*="user" i]', 'input[type="text"]:not([readonly])'], 30000)
+        pwd = await self._first_visible(['input[type="password"]'], 15000)
+        if not user or not pwd:
+            await self._fail("formulaire Webtop")
+        await user.fill(self.username)
+        await pwd.fill(self.password)
+        await asyncio.sleep(1)
+        btn = await self._first_visible(['button[type="submit"]:not(:has-text("משרד החינוך"))',
+                                         'button:has-text("כניסה"):not(:has-text("משרד החינוך"))'], 10000)
+        if not btn:
+            await self._fail("bouton de connexion Webtop")
+        await btn.click()
+
+        loop = asyncio.get_event_loop()
+        deadline = loop.time() + 60
+        login_res = None
+        while loop.time() < deadline:
+            login_res = next((js for path, js in reversed(self.captured)
+                              if path.endswith("LoginByUserNameAndPassword")), None)
+            if login_res is not None:
+                break
+            await asyncio.sleep(1)
+        if login_res is None:
+            await self._fail("réponse de connexion Webtop")
+        req = next((b for path, b in reversed(self.requests) if path.endswith("LoginByUserNameAndPassword")), None)
+        if isinstance(req, dict):
+            d = req.get("Data")
+            log(f"  clé Data du site : {'identique' if d == DEFAULT_DATA else 'différente'} de celle par défaut"
+                f" · champs envoyés : {sorted(req.keys())}")
+        if not login_res.get("status"):
+            msg = login_res.get("errorDescription") or login_res.get("message") or ""
+            await asyncio.sleep(2)
+            await self._fail(f"identifiant Webtop refusé par le site {('(' + str(msg)[:120] + ')') if msg else ''}")
+        self.login_data = login_res.get("data") or {}
+        if self.login_data.get("token"):
+            await self._set_token(self.login_data["token"])
+        await self._settle(20000)
+        log("✓ Connecté avec l'identifiant Webtop (formulaire)")
+        return self.login_data
+
+
 def find_key(obj: Any, patterns: tuple[str, ...]) -> Any:
     """Cherche récursivement la première clé dont le nom (minuscule) est dans patterns."""
     if isinstance(obj, dict):
@@ -437,9 +497,9 @@ async def fetch_webtop(diagnostic: bool) -> tuple[list[dict], str, list[dict] | 
         except RuntimeError as e:
             if mode or isinstance(wt, WebtopMoE):
                 raise
-            log(f"  identifiant Webtop refusé ({str(e)[:80]}) → essai via le ministère")
+            log(f"  connexion directe refusée ({str(e)[:60]}) → formulaire Webtop dans le navigateur")
             await wt.close()
-            wt = WebtopMoE(*args)
+            wt = WebtopForm(*args)
             await wt.login()
         log("✓ Connecté à Webtop")
         if diagnostic:
