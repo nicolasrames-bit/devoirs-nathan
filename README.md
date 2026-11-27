@@ -31,22 +31,30 @@ Rien ne tourne sur ton PC. Aucun identifiant n'est dans le code : tout est dans 
 | `WEBTOP_PASSWORD` | mot de passe Webtop |
 | `FAMILY_PASSWORD` | un mot de passe que tu choisis pour la page famille (à donner à Tania et Nathan) |
 
-## 2 bis. Relais Israël (obligatoire)
+## 2 bis. Ordinateur de la maison (obligatoire)
 
-Webtop bloque les connexions venant de l'étranger, et GitHub tourne aux États-Unis.
-Un mini-relais dans le data center Google de **Tel Aviv** fait passer uniquement les appels Webtop
-(protégé par un jeton secret, il ne stocke rien). Coût : gratuit ou quelques centimes par mois.
+Webtop n'accepte que les connexions « maison » en Israël : il refuse les serveurs de GitHub et même
+les serveurs cloud israéliens. L'étape Webtop tourne donc sur un ordinateur de la maison
+(« self-hosted runner »). Si l'ordinateur est éteint, la synchro attend qu'il se rallume (jusqu'à 24 h).
+Le portail, lui, reste en ligne en permanence.
 
-1. <https://console.cloud.google.com> → crée (ou choisis) un projet, par ex. `devoirs-nathan`.
-   La facturation doit être activée sur le projet (menu *Facturation*), Cloud Functions l'exige.
-2. Clique sur l'icône **Cloud Shell** `>_` en haut à droite, puis colle :
-   ```
-   bash <(curl -fsSL https://raw.githubusercontent.com/nicolasrames-bit/devoirs-nathan/main/relay/setup-cloudshell.sh)
-   ```
-3. À la fin, le script affiche 2 valeurs : ajoute-les comme secrets GitHub
-   `WEBTOP_RELAY_URL` et `WEBTOP_RELAY_TOKEN`.
+**a. Installer Python** (une seule fois) — <https://www.python.org/downloads/>
+- Coche **Add python.exe to PATH**, puis **Customize installation** → Next → coche **Install Python for all users** → Install.
 
-Le même projet Google Cloud servira pour Google Calendar (étape 4).
+**b. Installer le runner GitHub**
+1. Dans le repo : **Settings → Actions → Runners → New self-hosted runner** → choisis **Windows**, **x64**.
+2. Ouvre **PowerShell en administrateur** (clic droit sur Démarrer → *Terminal (administrateur)*).
+3. Copie-colle les commandes affichées par GitHub, bloc par bloc (*Download* puis *Configure*).
+   - Crée d'abord le dossier ailleurs que dans `C:\Users\...`, par ex. `mkdir C:\actions-runner; cd C:\actions-runner`.
+   - Pendant `config.cmd`, appuie sur **Entrée** pour toutes les questions, sauf :
+     *Would you like to run the runner as service?* → **Y** (il démarre tout seul avec Windows).
+4. Dans **Settings → Actions → Runners**, le runner doit apparaître **Idle** (vert).
+
+**c. Sécurité (repo public)** — **Settings → Actions → General → Approval for running fork pull request workflows
+from contributors** → choisis **Require approval for all external contributors** → Save.
+Ainsi, personne d'autre ne peut faire exécuter quoi que ce soit sur ton ordinateur.
+
+> Le dossier `relay/` (relais Google Cloud) n'est plus utilisé : Webtop bloque aussi les serveurs cloud.
 
 ## 3. Premier lancement
 

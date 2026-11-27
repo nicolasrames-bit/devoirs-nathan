@@ -21,30 +21,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  sync:
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+  # 1) Sur l'ordinateur de la maison (connexion israélienne) : Webtop -> portail chiffré + Google Calendar.
+  #    Si l'ordinateur est éteint, la tâche attend qu'il se rallume (jusqu'à 24 h).
+  fetch:
+    runs-on: self-hosted
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+    defaults:
+      run:
+        shell: powershell
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - run: pip install -r requirements.txt
-
-      - id: pages
-        uses: actions/configure-pages@v5
+      - name: Environnement Python
+        run: |
+          if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+            Write-Error "Python introuvable sur ce PC : installe-le pour tous les utilisateurs, puis redémarre le service du runner."
+            exit 1
+          }
+          $venv = Join-Path "${{ runner.tool_cache }}" "devoirs-venv"
+          if (-not (Test-Path "$venv\Scripts\python.exe")) { python -m venv $venv }
+          & "$venv\Scripts\python.exe" -m pip install --disable-pip-version-check -q -r requirements.txt
+          if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - name: Récupérer les devoirs
         env:
           WEBTOP_USERNAME: ${{ secrets.WEBTOP_USERNAME }}
           WEBTOP_PASSWORD: ${{ secrets.WEBTOP_PASSWORD }}
-          WEBTOP_RELAY_URL: ${{ secrets.WEBTOP_RELAY_URL }}
-          WEBTOP_RELAY_TOKEN: ${{ secrets.WEBTOP_RELAY_TOKEN }}
           WEBTOP_DATA: ${{ secrets.WEBTOP_DATA }}
           WEBTOP_CLASS_CODE: ${{ secrets.WEBTOP_CLASS_CODE }}
           WEBTOP_CLASS_NUMBER: ${{ secrets.WEBTOP_CLASS_NUMBER }}
@@ -52,21 +56,47 @@ jobs:
           FAMILY_PASSWORD: ${{ secrets.FAMILY_PASSWORD }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_CALENDAR_ID: ${{ secrets.GOOGLE_CALENDAR_ID }}
-          SITE_URL: ${{ steps.pages.outputs.base_url }}
+          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
           DIAGNOSTIC: ${{ inputs.diagnostic && '1' || '' }}
-        run: python sync.py
+        run: |
+          & (Join-Path "${{ runner.tool_cache }}" "devoirs-venv\Scripts\python.exe") sync.py
+          if ($LASTEXITCODE -ne 0) { exit 1 }
 
+      # Le contenu est déjà chiffré avec le mot de passe famille
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: out/site
+          include-hidden-files: true
+          retention-days: 1
+
+  # 2) Chez GitHub : publication du portail
+  deploy:
+    needs: fetch
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: site
+      - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: out/site
-
+          path: site
       - id: deploy
         uses: actions/deploy-pages@v4
 
-      # GitHub met en pause les tâches planifiées d'un repo sans activité depuis 60 jours.
-      # Un mini-commit par mois (sans aucune donnée) évite ça.
-      - name: Keepalive
-        run: |
+  # GitHub met en pause les tâches planifiées d'un repo sans activité depuis 60 jours.
+  # Un mini-commit par mois (sans aucune donnée) évite ça.
+  keepalive:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
           f=.github/keepalive
           now=$(date +%s)
           last=$(cat "$f" 2>/dev/null || echo 0)
