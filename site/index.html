@@ -145,6 +145,27 @@
   .end{text-align:center;padding:26px 10px}
   .end .stars{font-size:46px;letter-spacing:4px}
   .end .big{font-size:24px;font-weight:800;margin:8px 0 4px}
+  /* pièces & tirelire */
+  .coins{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 12px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .bank{background:linear-gradient(135deg, color-mix(in srgb, #f59e0b 22%, var(--card)), var(--card));border:1px solid color-mix(in srgb, #f59e0b 45%, var(--line));
+    border-radius:20px;padding:16px;margin-bottom:6px}
+  .bank .row{display:flex;align-items:center;gap:12px}
+  .bank .big{font-size:30px;font-weight:800}
+  .bank .bar{height:12px;margin:12px 0 6px;background:color-mix(in srgb, #f59e0b 15%, var(--soft))}
+  .bank .bar i{background:linear-gradient(90deg,#f59e0b,#f97316)}
+  .bank small{color:var(--muted)}
+  .packs{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .pack{border:2px dashed color-mix(in srgb, #f59e0b 60%, var(--line));border-radius:12px;padding:6px 10px;font-size:13px;font-weight:700}
+  .pack.on{border-style:solid;background:#f59e0b;color:#fff}
+  .rules{font-size:14px;margin:8px 0 0;padding-inline-start:18px;color:var(--muted)}
+  .earn{font-size:20px;font-weight:800;color:#d97706;margin-top:6px}
+  .parent input{width:100%;font:inherit;font-size:18px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);margin:8px 0}
+  .plist{font-size:14px;margin:6px 0 0;padding-inline-start:18px}
+  .plist li{margin:3px 0}
+  .pbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .pbtns button{padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);cursor:pointer;font-size:14px}
+  .pbtns .pay{grid-column:1/-1;background:var(--ok);color:#fff;border:0;font-weight:700;font-size:16px}
+  .pbtns .pay:disabled{opacity:.4}
   .hidden{display:none !important}
 </style>
 </head>
@@ -169,6 +190,7 @@
         <div class="sub" id="updated"></div>
       </div>
       <div class="tools">
+        <button class="coins" id="coins" data-go="ex"></button>
         <select class="lang" aria-label="Language"></select>
         <button class="btn" id="reload">↻</button>
       </div>
@@ -247,6 +269,31 @@
     learned:     {fr:"📚 Ce qu'il a appris", he:"📚 מה למדנו", en:"📚 What was learned", es:"📚 Lo que aprendió"},
     learnedSub:  {fr:"Sujets des cours depuis le début du semestre, par matière", he:"נושאי השיעורים מתחילת המחצית, לפי מקצוע", en:"Lesson topics since the start of the term, by subject", es:"Temas de las clases desde el inicio del semestre, por materia"},
     topicsN:     {fr:"sujets", he:"נושאים", en:"topics", es:"temas"},
+    bank:        {fr:"Ma tirelire", he:"הקופה שלי", en:"My piggy bank", es:"Mi hucha"},
+    nextPack:    {fr:"avant le prochain pack de 400 Robux", he:"עד החבילה הבאה של 400 רובאקס", en:"to the next 400 Robux pack", es:"para el próximo paquete de 400 Robux"},
+    packsWeek:   {fr:"Packs gagnés cette semaine", he:"חבילות שהרווחת השבוע", en:"Packs won this week", es:"Paquetes ganados esta semana"},
+    packMax:     {fr:"(2 max par semaine)", he:"(עד 2 בשבוע)", en:"(2 max per week)", es:"(máx. 2 por semana)"},
+    howEarn:     {fr:"Comment gagner des pièces ?", he:"?איך מרוויחים מטבעות", en:"How do I earn coins?", es:"¿Cómo gano monedas?"},
+    rule1:       {fr:"Bonne réponse : +10 🪙 (seulement au 1er essai)", he:"תשובה נכונה: ‎+10 🪙 (רק בניסיון הראשון)", en:"Correct answer: +10 🪙 (first try only)", es:"Respuesta correcta: +10 🪙 (solo al primer intento)"},
+    rule2:       {fr:"Série terminée : +10 🪙 · série parfaite : +10 🪙 de plus", he:"סיימת סדרה: ‎+10 🪙 · בלי טעויות: עוד ‎+10 🪙", en:"Set finished: +10 🪙 · perfect set: +10 🪙 more", es:"Serie terminada: +10 🪙 · serie perfecta: +10 🪙 más"},
+    rule3:       {fr:"Devoir fait (✓) : +20 🪙 · examen réussi : bonus des parents", he:"שיעורי בית הוכנו (✓): ‎+20 🪙 · מבחן מוצלח: בונוס מההורים", en:"Homework done (✓): +20 🪙 · exam passed: bonus from parents", es:"Deberes hechos (✓): +20 🪙 · examen aprobado: premio de los padres"},
+    rule4:       {fr:"800 🪙 = 400 Robux 🎁", he:"800 🪙 = ‏400 רובאקס 🎁", en:"800 🪙 = 400 Robux 🎁", es:"800 🪙 = 400 Robux 🎁"},
+    earned:      {fr:"pièces gagnées !", he:"!מטבעות הרווחת", en:"coins earned!", es:"¡monedas ganadas!"},
+    practice:    {fr:"Entraînement : les pièces ne comptent qu'au 1er essai", he:"אימון: מטבעות רק בניסיון הראשון", en:"Practice: coins only count on the first try", es:"Práctica: las monedas solo cuentan en el primer intento"},
+    parents:     {fr:"👨‍👩‍👦 Espace parents", he:"👨‍👩‍👦 אזור הורים", en:"👨‍👩‍👦 Parents", es:"👨‍👩‍👦 Padres"},
+    pinNew:      {fr:"Choisis un code parent (4 chiffres ou plus)", he:"בחרו קוד הורים (4 ספרות או יותר)", en:"Choose a parent code (4+ digits)", es:"Elige un código de padres (4+ cifras)"},
+    pinAsk:      {fr:"Code parent", he:"קוד הורים", en:"Parent code", es:"Código de padres"},
+    ok:          {fr:"OK", he:"אישור", en:"OK", es:"OK"},
+    thisWeekP:   {fr:"Cette semaine", he:"השבוע", en:"This week", es:"Esta semana"},
+    setsDone:    {fr:"Séries faites (1er essai)", he:"סדרות שהושלמו", en:"Sets done (first try)", es:"Series hechas (1er intento)"},
+    hwChecked:   {fr:"Devoirs cochés", he:"שיעורי בית שסומנו", en:"Homework checked", es:"Deberes marcados"},
+    bonusExam:   {fr:"🏅 Examen réussi +300", he:"🏅 מבחן מוצלח ‎+300", en:"🏅 Exam passed +300", es:"🏅 Examen aprobado +300"},
+    bonusTop:    {fr:"🏆 Excellent +500", he:"🏆 מצוין ‎+500", en:"🏆 Excellent +500", es:"🏆 Excelente +500"},
+    paid:        {fr:"✅ J'ai donné 400 Robux", he:"✅ נתתי 400 רובאקס", en:"✅ I gave 400 Robux", es:"✅ Di 400 Robux"},
+    payable:     {fr:"À donner maintenant", he:"לתת עכשיו", en:"To give now", es:"Para dar ahora"},
+    costWeek:    {fr:"Coût cette semaine", he:"עלות השבוע", en:"Cost this week", es:"Coste esta semana"},
+    nothing:     {fr:"rien pour l'instant", he:"עדיין כלום", en:"nothing yet", es:"nada por ahora"},
+    oneDevice:   {fr:"Les pièces sont enregistrées sur cet appareil : Nathan doit toujours utiliser le même.", he:"המטבעות נשמרים במכשיר הזה – כדאי להשתמש תמיד באותו מכשיר.", en:"Coins are saved on this device: always use the same one.", es:"Las monedas se guardan en este dispositivo: usa siempre el mismo."},
     usual:       {fr:"Horaire habituel", he:"מערכת קבועה", en:"Usual timetable", es:"Horario habitual"},
     markDone:    {fr:"Marquer comme fait", he:"סמן כבוצע", en:"Mark as done", es:"Marcar como hecho"},
   };
@@ -462,6 +509,69 @@
     return h;
   }
 
+  // ---------- pièces ----------
+  const COIN = {q: 10, set: 10, perfect: 10, hw: 20, pack: 800, robux: 400, usd: 4.99, maxWeek: 2};
+  const COIN_KEY = "devoirs.coins", PIN_KEY = "devoirs.pin";
+  let ledger = JSON.parse(store.get(COIN_KEY) || "[]");   // [{t, id, c, d}]
+  let parentOpen = false;
+  const saveLedger = () => store.set(COIN_KEY, JSON.stringify(ledger));
+  const nowIso = () => new Date().toISOString();
+  const balance = () => ledger.reduce((a, e) => a + e.c, 0);
+  const weekStartIso = () => iso(sunday(new Date()));
+  const thisWeek = e => iso(new Date(e.d)) >= weekStartIso();
+  const packsPaidWeek = () => ledger.filter(e => e.t === "payout" && thisWeek(e)).length;
+  const packsAvailable = () => Math.max(0, Math.min(Math.floor(balance() / COIN.pack), COIN.maxWeek - packsPaidWeek()));
+  function addCoins(t, id, c){ if (!ledger.some(e => e.t === t && e.id === id)) { ledger.push({t, id, c, d: nowIso()}); saveLedger(); } }
+  function removeCoins(t, id){ const before = ledger.length; ledger = ledger.filter(e => !(e.t === t && e.id === id)); if (ledger.length !== before) saveLedger(); }
+  async function sha(s){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("devoirs|" + s)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,"0")).join(""); }
+
+  function bankCard(){
+    const bal = balance(), into = bal % COIN.pack, paidW = packsPaidWeek(), avail = packsAvailable();
+    const packs = [...Array(COIN.maxWeek)].map((_, i) =>
+      `<span class="pack ${i < paidW + avail ? "on" : ""}">🎁 400 Robux</span>`).join("");
+    return `<div class="bank">
+      <div class="row"><div style="font-size:34px">🪙</div>
+        <div style="flex:1"><div class="sub" style="margin:0">${t("bank")}</div><div class="big">${bal}</div></div></div>
+      <div class="bar"><i style="width:${Math.round(100 * into / COIN.pack)}%"></i></div>
+      <small>${COIN.pack - into} 🪙 ${t("nextPack")}</small>
+      <div class="sub" style="margin-top:10px">${t("packsWeek")} <small>${t("packMax")}</small></div>
+      <div class="packs">${packs}</div>
+      <details style="margin-top:8px"><summary style="margin:0">${t("howEarn")}</summary>
+        <ul class="rules"><li>${t("rule1")}</li><li>${t("rule2")}</li><li>${t("rule3")}</li><li>${t("rule4")}</li></ul></details>
+    </div>`;
+  }
+
+  function parentView(){
+    if (!parentOpen) {
+      const has = !!store.get(PIN_KEY);
+      return `<section class="parent"><h2>${t("parents")}</h2>
+        <div class="qcard"><div class="sub" style="margin:0">${has ? t("pinAsk") : t("pinNew")}</div>
+        <input id="pin" type="password" inputmode="numeric" autocomplete="off">
+        <button class="primary" data-pin style="width:100%">${t("ok")}</button>
+        <div id="pinErr" class="err"></div></div></section>`;
+    }
+    const wk = ledger.filter(thisWeek);
+    const sets = wk.filter(e => e.t === "ex").map(e => `<li><bdi>${esc(e.label || "")}</bdi> · ${e.c} 🪙</li>`).join("");
+    const hws = wk.filter(e => e.t === "hw").map(e => `<li><bdi>${esc(e.label || "")}</bdi> · ${e.c} 🪙</li>`).join("");
+    const bon = wk.filter(e => e.t === "bonus").map(e => `<li><bdi>${esc(e.label || "")}</bdi> · ${e.c} 🪙</li>`).join("");
+    const paidW = packsPaidWeek(), avail = packsAvailable();
+    return `<section class="parent"><h2>${t("parents")}</h2><div class="qcard">
+      <div><b>${t("thisWeekP")}</b> · 🪙 ${wk.filter(e => e.c > 0).reduce((a, e) => a + e.c, 0)}</div>
+      <div class="sub" style="margin-top:8px">${t("setsDone")} (${wk.filter(e => e.t === "ex").length})</div>
+      <ul class="plist">${sets || `<li>${t("nothing")}</li>`}</ul>
+      <div class="sub" style="margin-top:8px">${t("hwChecked")} (${wk.filter(e => e.t === "hw").length})</div>
+      <ul class="plist">${hws || `<li>${t("nothing")}</li>`}</ul>
+      ${bon ? `<ul class="plist">${bon}</ul>` : ""}
+      <div style="margin-top:12px"><b>${t("payable")} :</b> ${avail} × 400 Robux (${(avail * COIN.usd).toFixed(2)} $)
+        · <small>${t("costWeek")} : ${(paidW * COIN.usd).toFixed(2)} $</small></div>
+      <div class="pbtns">
+        <button data-bonus="300">${t("bonusExam")}</button><button data-bonus="500">${t("bonusTop")}</button>
+        <button class="pay" data-pay ${avail ? "" : "disabled"}>${t("paid")}</button>
+      </div>
+      <div class="sub" style="margin-top:10px">${t("oneDevice")}</div>
+    </div></section>`;
+  }
+
   // ---------- exercices ----------
   const SUBJ_ICONS = [["חשבון","🔢"],["מתמטיקה","🔢"],["עברית","📝"],["לשון","📝"],["אנגלית","🇬🇧"],["מדע","🔬"],
                       ["תורה","📜"],["תנ\"ך","📜"],["מולדת","🗺️"],["גאוגרפיה","🗺️"],["היסטוריה","🏛️"]];
@@ -527,7 +637,7 @@
       });
       h += `</section>`;
     }
-    return h + learnedView();
+    return bankCard() + h + learnedView() + parentView();
   }
 
   function viewPlayer(){
@@ -539,6 +649,7 @@
         <div class="stars" dir="ltr">${stars(play.score, n)}</div>
         <div class="big">${t("finished")}</div>
         <div class="sub" style="font-size:16px">${play.score} / ${n} ${t("goodAnswers")}</div>
+        ${play.earned ? `<div class="earn">+${play.earned} 🪙 ${t("earned")}</div>` : `<div class="sub">${t("practice")}</div>`}
         <div class="act"><button class="ghost" data-exback>${t("back")}</button><button class="primary" data-exagain>${t("again")}</button></div>
       </div>`;
     }
@@ -591,6 +702,7 @@
     const today = iso(new Date());
     const todo = data.items.filter(i => i.date >= today && !done.has(i.id)).length;
     $("hwCount").textContent = todo || ""; $("hwCount").className = todo ? "count" : "";
+    $("coins").textContent = `🪙 ${balance()}`;
     document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
     $("view").innerHTML = (data.warning === "session_expired" && !play ? `<div class="warn">${t("expired")}</div>` : "")
       + (tab === "tt" ? viewTT() : tab === "hw" ? viewHW() : tab === "ex" ? viewEx() : viewHome());
@@ -598,7 +710,7 @@
   }
 
   function go(tb, day){
-    tab = tb; if (day) ttDay = day; play = null;
+    tab = tb; if (day) ttDay = day; play = null; parentOpen = false;
     try { history.replaceState(null, "", "#" + tb); } catch {}
     render(); window.scrollTo(0, 0);
   }
@@ -608,6 +720,7 @@
     lang = e.target.value; store.set(LANG_KEY, lang); applyLang();
   }));
   $("lockForm").addEventListener("submit", e => { e.preventDefault(); $("err").textContent = ""; unlock($("pw").value); });
+  $("coins").addEventListener("click", () => go("ex"));
   $("reload").addEventListener("click", () => { const p = store.get(PW_KEY); if (p) unlock(p); });
   $("nav").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) go(b.dataset.tab); });
   $("view").addEventListener("keydown", e => {
@@ -619,6 +732,24 @@
     const chip = el.closest(".chip"); if (chip) { filter = chip.dataset.s || null; return render(); }
     const st = el.closest("[data-set]"); if (st) { play = {key: st.dataset.set, i: 0, score: 0}; window.scrollTo(0,0); return render(); }
     if (el.closest("[data-exback]")) { play = null; return render(); }
+    if (el.closest("[data-pin]")) {
+      const v = ($("pin") || {}).value || "";
+      if (v.length < 4) { $("pinErr").textContent = t("pinNew"); return; }
+      sha(v).then(hv => {
+        const saved = store.get(PIN_KEY);
+        if (!saved) { store.set(PIN_KEY, hv); parentOpen = true; render(); }
+        else if (saved === hv) { parentOpen = true; render(); }
+        else $("pinErr").textContent = t("wrongPw");
+      });
+      return;
+    }
+    const bn = el.closest("[data-bonus]"); if (bn && parentOpen) {
+      const c = +bn.dataset.bonus;
+      ledger.push({t: "bonus", id: "b" + Date.now(), c, d: nowIso(), label: bn.textContent.trim()}); saveLedger(); return render();
+    }
+    if (el.closest("[data-pay]") && parentOpen && packsAvailable() > 0) {
+      ledger.push({t: "payout", id: "p" + Date.now(), c: -COIN.pack, d: nowIso(), label: "400 Robux"}); saveLedger(); return render();
+    }
     if (el.closest("[data-exagain]")) { play = {key: play.key, i: 0, score: 0}; return render(); }
     if (el.closest("[data-exhint]")) { play.hint = true; return render(); }
     const opt = el.closest("[data-opt]"); if (opt && play && !play.answered) {
@@ -630,6 +761,12 @@
       const s = sets().find(x => x.key === play.key);
       play = {key: play.key, i: play.i + 1, score: play.score};
       if (play.i >= s.exercises.length) {
+        const n = s.exercises.length;
+        if (!exRes[play.key] && !ledger.some(e => e.t === "ex" && e.id === play.key)) {
+          const c = play.score * COIN.q + COIN.set + (play.score === n ? COIN.perfect : 0);
+          ledger.push({t: "ex", id: play.key, c, d: nowIso(), label: `${s.subject} – ${s.title || ""} (${play.score}/${n})`});
+          saveLedger(); play.earned = c;
+        }
         const prev = exRes[play.key];
         if (!prev || play.score >= prev.score) exRes[play.key] = {score: play.score, total: s.exercises.length};
         store.set(EX_KEY, JSON.stringify(exRes));
@@ -643,7 +780,10 @@
     const day = el.closest(".daybtn"); if (day) { ttDay = day.dataset.day; return render(); }
     const chk = el.closest(".check"); if (chk) {
       const id = chk.closest(".card").dataset.id;
-      done.has(id) ? done.delete(id) : done.add(id);
+      const it = data.items.find(i => i.id === id);
+      if (done.has(id)) { done.delete(id); removeCoins("hw", id); }
+      else { done.add(id); if (it && it.date >= iso(addDays(new Date(), -7))) {
+        ledger.push({t: "hw", id, c: COIN.hw, d: nowIso(), label: `${it.subject} (${fmtShort(it.date)})`}); saveLedger(); } }
       store.set(DONE_KEY, JSON.stringify([...done]));
       return render();
     }

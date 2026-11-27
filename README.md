@@ -123,6 +123,16 @@ envoyés — jamais le nom de l'enfant. Chaque cours n'est traité qu'une fois.
 4. Le niveau est détecté automatiquement ; pour le forcer : **Settings → Secrets and variables → Actions → onglet Variables**
    → `STUDENT_GRADE` = `3` (par exemple).
 
+## 6. Pièces et Robux
+
+- Bonne réponse : +10 🪙 (1er essai d'une série seulement) · série terminée +10 · série parfaite +10
+- Devoir coché « fait » (de moins de 7 jours) : +20 🪙
+- Bonus d'examen ajoutés par les parents : +300 / +500
+- **800 🪙 = 400 Robux (4,99 $)**, au plus **2 packs par semaine** (9,98 $)
+- **Espace parents** (en bas de l'onglet Exercices, code choisi à la 1re ouverture) : bilan de la semaine,
+  bonus d'examen, bouton « J'ai donné 400 Robux ».
+- Les pièces sont enregistrées sur l'appareil de l'enfant : utiliser toujours le même.
+
 ---
 
 ## Dépannage
