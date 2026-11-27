@@ -8,10 +8,15 @@ if [ -z "$PROJECT" ]; then
   echo "❌ Aucun projet sélectionné. Choisis ton projet en haut de la console Google Cloud, puis relance."
   exit 1
 fi
+# Si on a un numéro de projet, le convertir en ID de projet (exigé par Cloud Functions)
+if [[ "$PROJECT" =~ ^[0-9]+$ ]]; then
+  PROJECT=$(gcloud projects describe "$PROJECT" --format='value(projectId)')
+  gcloud config set project "$PROJECT" --quiet >/dev/null 2>&1
+fi
 echo "▶ Projet : $PROJECT"
 
 echo "▶ Activation des services (1 à 2 min)…"
-gcloud services enable cloudfunctions.googleapis.com run.googleapis.com \
+gcloud services enable --project="$PROJECT" cloudfunctions.googleapis.com run.googleapis.com \
   cloudbuild.googleapis.com artifactregistry.googleapis.com --quiet
 
 DIR="$HOME/webtop-relay"
@@ -26,11 +31,11 @@ TOKEN_FILE="$DIR/.token"
 TOKEN=$(cat "$TOKEN_FILE")
 
 echo "▶ Déploiement du relais à Tel Aviv (2 à 4 min)…"
-gcloud functions deploy webtop-relay --gen2 --runtime=python312 --region=me-west1 \
+gcloud functions deploy webtop-relay --project="$PROJECT" --gen2 --runtime=python312 --region=me-west1 \
   --source=. --entry-point=relay --trigger-http --allow-unauthenticated \
   --memory=256Mi --max-instances=2 --set-env-vars="RELAY_TOKEN=$TOKEN" --quiet
 
-URL=$(gcloud functions describe webtop-relay --gen2 --region=me-west1 --format='value(serviceConfig.uri)')
+URL=$(gcloud functions describe webtop-relay --project="$PROJECT" --gen2 --region=me-west1 --format='value(serviceConfig.uri)')
 
 echo
 echo "✅ Relais prêt. Ajoute ces 2 secrets dans GitHub (Settings → Secrets and variables → Actions) :"
