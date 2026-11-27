@@ -21,14 +21,28 @@ Rien ne tourne sur ton PC. Aucun identifiant n'est dans le code : tout est dans 
 2. Les fichiers sont déjà dans le repo.
 3. **Settings → Pages → Build and deployment → Source : GitHub Actions**.
 
+## 1 bis. Comment le script se connecte (important)
+
+La connexion Webtop par identifiant est protégée par un contrôle anti-robot (Cloudflare) :
+le script **ne se connecte jamais lui-même**. Il réutilise la session qu'un parent ouvre dans son navigateur.
+
+**Renouveler la session** (quand le portail affiche « session expirée ») :
+1. Chrome → webtop.smartschool.co.il → connexion avec l'identifiant parent (coche « se souvenir de moi » si proposé).
+2. F12 → Network → Fetch/XHR → F5 → clique sur `GetMenuCounters` → Headers → Request Headers → ligne `Cookie`.
+3. Copie la partie `webToken=…` dans le secret GitHub **`WEBTOP_SESSION`** (ne la partage nulle part ailleurs).
+4. Ne clique pas sur « התנתק » ensuite (ça fermerait la session) : ferme simplement l'onglet.
+
+**Ce que Webtop fournit pour ce compte** : les cours du jour (matière, heure, prof, sujet, annulations) et les devoirs
+donnés ce jour-là. L'emploi du temps de la semaine n'est pas autorisé par l'école : l'onglet *Emploi du temps* se
+remplit au fil des jours.
+
 ## 2. Ajouter les secrets
 
 **Settings → Secrets and variables → Actions → New repository secret** :
 
 | Nom | Valeur |
 |---|---|
-| `WEBTOP_USERNAME` | identifiant Webtop |
-| `WEBTOP_PASSWORD` | mot de passe Webtop |
+| `WEBTOP_SESSION` | la session Webtop du parent (voir 1 bis) |
 | `FAMILY_PASSWORD` | un mot de passe que tu choisis pour la page famille (à donner à Tania et Nathan) |
 
 ## 2 bis. Ordinateur de la maison (obligatoire)
