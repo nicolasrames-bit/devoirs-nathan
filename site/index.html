@@ -199,7 +199,7 @@
     updated:     {fr:"Mis à jour", he:"עודכן", en:"Updated", es:"Actualizado"},
     reload:      {fr:"Recharger", he:"רענון", en:"Reload", es:"Recargar"},
     navHome:     {fr:"Aujourd'hui", he:"היום", en:"Today", es:"Hoy"},
-    navTT:       {fr:"Emploi du temps", he:"מערכת שעות", en:"Timetable", es:"Horario"},
+    navTT:       {fr:"Horaire", he:"מערכת שעות", en:"Timetable", es:"Horario"},
     navHW:       {fr:"Devoirs", he:"שיעורי בית", en:"Homework", es:"Deberes"},
     today:       {fr:"Aujourd'hui", he:"היום", en:"Today", es:"Hoy"},
     tomorrow:    {fr:"Demain", he:"מחר", en:"Tomorrow", es:"Mañana"},
@@ -236,6 +236,7 @@
     goodAnswers: {fr:"bonnes réponses", he:"תשובות נכונות", en:"correct answers", es:"respuestas correctas"},
     again:       {fr:"Recommencer", he:"שוב", en:"Try again", es:"Otra vez"},
     back:        {fr:"Retour", he:"חזרה", en:"Back", es:"Volver"},
+    usual:       {fr:"Horaire habituel", he:"מערכת קבועה", en:"Usual timetable", es:"Horario habitual"},
     markDone:    {fr:"Marquer comme fait", he:"סמן כבוצע", en:"Mark as done", es:"Marcar como hecho"},
   };
 
@@ -317,9 +318,23 @@
   const color = s => { let h = 0; for (const c of s) h = (h*31 + c.charCodeAt(0)) % 360; return `hsl(${h} 62% 48%)`; };
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const sunday = d => addDays(d, -d.getDay());
-  const lessonsOn = day => data.lessons.filter(l => l.date === day);
+  // Cours d'un jour : les vrais cours Webtop s'il y en a, sinon l'horaire habituel de ce jour de la semaine
+  const weekly = () => data.weekly || [];
+  const lessonsOn = day => {
+    const real = data.lessons.filter(l => l.date === day);
+    if (real.length) return real;
+    const wd = parse(day).getDay();
+    return weekly().filter(w => w.day === wd).map(w => ({...w, date: day, planned: true}));
+  };
   const hwOn = day => data.items.filter(i => i.date === day);
-  const schoolDays = () => [...new Set(data.lessons.map(l => l.date))].sort();
+  const schoolDays = () => {
+    const days = new Set(data.lessons.map(l => l.date));
+    if (weekly().length) {
+      const wds = new Set(weekly().map(w => w.day)), sun = sunday(new Date());
+      for (let i = 0; i < 14; i++) { const d = addDays(sun, i); if (wds.has(d.getDay())) days.add(iso(d)); }
+    }
+    return [...days].sort();
+  };
   const nowHM = () => new Date().toTimeString().slice(0,5);
 
   // ---------- composants ----------
@@ -355,8 +370,9 @@
 
   const timetable = day => {
     const ls = lessonsOn(day);
-    return ls.length ? `<div class="tt">${ls.map(l => lessonRow(l, day === iso(new Date()))).join("")}</div>`
-                     : `<div class="empty">${t("noLessons")}</div>`;
+    if (!ls.length) return `<div class="empty">${t("noLessons")}</div>`;
+    return `<div class="tt">${ls.map(l => lessonRow(l, day === iso(new Date()))).join("")}</div>` +
+           (ls[0].planned ? `<div class="sub" style="margin-top:6px">🗓️ ${t("usual")}</div>` : "");
   };
 
   const bag = day => {

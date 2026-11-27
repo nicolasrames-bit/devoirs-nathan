@@ -1083,6 +1083,49 @@ def sync_calendar(items: list[dict], today: dt.date, student: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Emploi du temps habituel (secret WEEKLY_TIMETABLE, 1 ligne par cours)
+#   א 1 תורה | רוני ויצמן | 8:00-8:50
+# --------------------------------------------------------------------------- #
+DAY_LETTERS = {"א": 0, "ב": 1, "ג": 2, "ד": 3, "ה": 4, "ו": 5,
+               "dim": 0, "lun": 1, "mar": 2, "mer": 3, "jeu": 4, "ven": 5,
+               "sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5}
+
+
+def parse_weekly(text: str) -> list[dict]:
+    out = []
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r"(\S+)\s+(\d+)\s+(.+)", line)
+        if not m:
+            continue
+        day = DAY_LETTERS.get(m.group(1).strip("'׳").lower()[:3]) if not m.group(1).startswith(("א", "ב", "ג", "ד", "ה", "ו")) \
+            else DAY_LETTERS.get(m.group(1).strip("'׳"))
+        if day is None:
+            continue
+        parts = [p.strip() for p in m.group(3).split("|")]
+        times = re.findall(r"\d{1,2}:\d{2}", parts[2] if len(parts) > 2 else "")
+        out.append({"day": day, "hour": int(m.group(2)), "subject": parts[0],
+                    "teacher": parts[1] if len(parts) > 1 else "",
+                    "start": as_time(times[0]) if times else "", "end": as_time(times[1]) if len(times) > 1 else ""})
+    return sorted(out, key=lambda w: (w["day"], w["hour"]))
+
+
+def fill_times(lessons: list[dict], weekly: list[dict]) -> list[dict]:
+    """Complète les cours réels (sans horaires) avec l'horaire habituel du même jour / même heure."""
+    by = {(w["day"], w["hour"]): w for w in weekly}
+    for l in lessons:
+        wd = (dt.date.fromisoformat(l["date"]).weekday() + 1) % 7
+        w = by.get((wd, l.get("hour")))
+        if w:
+            l["start"] = l.get("start") or w["start"]
+            l["end"] = l.get("end") or w["end"]
+            l["teacher"] = l.get("teacher") or w["teacher"]
+    return lessons
+
+
+# --------------------------------------------------------------------------- #
 # Exercices adaptés aux cours (API Claude). Seuls matière / sujet / devoirs sont envoyés.
 # --------------------------------------------------------------------------- #
 EXERCISE_DAYS = 3          # cours des N derniers jours
@@ -1201,7 +1244,8 @@ def build_exercises(lessons: list[dict], items: list[dict], previous: list[dict]
 
 # --------------------------------------------------------------------------- #
 def build_site(items: list[dict], lessons: list[dict], student: str, password: str,
-               warning: str = "", updated: str = "", exercises: list[dict] | None = None) -> None:
+               warning: str = "", updated: str = "", exercises: list[dict] | None = None,
+               weekly: list[dict] | None = None) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for f in (ROOT / "site").iterdir():
         if f.is_file():
@@ -1212,6 +1256,7 @@ def build_site(items: list[dict], lessons: list[dict], student: str, password: s
         "items": items,
         "lessons": lessons,
         "exercises": exercises or [],
+        "weekly": weekly or [],
     }
     if warning:
         payload["warning"] = warning
@@ -1238,7 +1283,8 @@ async def main() -> int:
         log("⚠ Session Webtop expirée : on republie les dernières données avec un avertissement")
         build_site(prev_payload.get("items", []), prev_payload.get("lessons", []),
                    prev_payload.get("student", ""), family_pw, warning="session_expired",
-                   updated=prev_payload.get("updated", ""), exercises=prev_payload.get("exercises", []))
+                   updated=prev_payload.get("updated", ""), exercises=prev_payload.get("exercises", []),
+                   weekly=parse_weekly(env("WEEKLY_TIMETABLE")) or prev_payload.get("weekly", []))
         return 0
     log(f"✓ {len(fresh)} devoirs reçus de Webtop")
 
@@ -1256,8 +1302,12 @@ async def main() -> int:
                                 if l["date"] not in got and l["date"] >= keep_from],
                      key=lambda l: (l["date"], l.get("hour") or 0, l.get("start") or ""))
 
+    weekly = parse_weekly(env("WEEKLY_TIMETABLE")) or prev_payload.get("weekly", [])
+    if weekly:
+        fill_times(lessons, weekly)
+        log(f"✓ Emploi du temps habituel : {len(weekly)} cours / semaine")
     exercises = build_exercises(lessons, items, prev_payload.get("exercises", []), today)
-    build_site(items, lessons, student, family_pw, exercises=exercises)
+    build_site(items, lessons, student, family_pw, exercises=exercises, weekly=weekly)
     sync_calendar(items, today, student)
     return 0
 

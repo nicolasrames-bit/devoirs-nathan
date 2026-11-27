@@ -53,6 +53,7 @@ jobs:
           WEBTOP_SESSION: ${{ secrets.WEBTOP_SESSION }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           STUDENT_GRADE: ${{ vars.STUDENT_GRADE }}
+          WEEKLY_TIMETABLE: ${{ secrets.WEEKLY_TIMETABLE }}
           WEBTOP_DATA: ${{ secrets.WEBTOP_DATA }}
           WEBTOP_CLASS_CODE: ${{ secrets.WEBTOP_CLASS_CODE }}
           WEBTOP_CLASS_NUMBER: ${{ secrets.WEBTOP_CLASS_NUMBER }}

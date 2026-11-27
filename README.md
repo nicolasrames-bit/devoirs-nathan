@@ -103,6 +103,14 @@ Ainsi, personne d'autre ne peut faire exécuter quoi que ce soit sur ton ordinat
 Au prochain lancement, les devoirs apparaissent comme événements « 📚 Matière (Nathan) » sur la journée.
 Si un devoir à venir disparaît de Webtop, il est aussi retiré de l'agenda.
 
+## 4 bis. Emploi du temps habituel
+
+Secret **`WEEKLY_TIMETABLE`** : une ligne par cours — `jour heure matière | prof | début-fin`, jours א à ו.
+Exemple : `א 1 תורה | רוני ויצמן | 8:00-8:50`. Les lignes qui commencent par `#` sont ignorées.
+Le portail affiche cet horaire pour toute la semaine ; quand Webtop donne les vrais cours du jour
+(annulations, sujet, devoirs), ils remplacent l'horaire habituel pour ce jour-là.
+À mettre à jour à chaque rentrée.
+
 ## 5. Exercices adaptés (optionnel)
 
 À chaque synchro, pour les cours des 3 derniers jours, Claude génère 4 petites questions en hébreu sur le sujet
