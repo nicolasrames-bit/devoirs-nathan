@@ -166,6 +166,40 @@ class Webtop:
         )
 
 
+class SessionExpired(RuntimeError):
+    pass
+
+
+class WebtopSession(Webtop):
+    """
+    Réutilise une session ouverte à la main par le parent (cookie webToken copié dans le secret
+    WEBTOP_SESSION). Le script ne se connecte jamais lui-même : la connexion (et son contrôle
+    anti-robot) est faite par une personne, dans son navigateur.
+    """
+
+    def __init__(self, session: str) -> None:
+        super().__init__("", "", "")
+        token = session.strip()
+        token = re.sub(r"^(cookie:\s*)?.*?webToken=", "", token, flags=re.I) if "webToken=" in token else token
+        token = token.split(";")[0].strip()
+        self._set_token(token)
+        log("  via la session Webtop du parent (secret WEBTOP_SESSION)")
+
+    async def login(self) -> dict:
+        res = await self.post("/server/api/PupilCard/GetSettingsList", {})
+        data = res.get("data") or {}
+        kids = data.get("children") or []
+        if not res.get("status") or not kids:
+            raise SessionExpired("Session Webtop expirée ou invalide")
+        wanted = env("WEBTOP_STUDENT_NAME")
+        k = next((c for c in kids if wanted and wanted in f"{c.get('firstName')} {c.get('lastName')}"), kids[0])
+        self.login_data = {"id": k.get("id"), "classCode": k.get("classCode"),
+                           "classNumber": k.get("classNum"), "firstName": k.get("firstName"),
+                           "studyYear": data.get("currentStudyYear")}
+        log(f"✓ Session valide ({len(kids)} enfant(s) sur le compte)")
+        return self.login_data
+
+
 class WebtopMoE(Webtop):
     """
     Connexion par l'identification du ministère de l'Éducation (lgn.edu.gov.il), dans un vrai
@@ -514,7 +548,11 @@ async def fetch_webtop(diagnostic: bool) -> tuple[list[dict], str, list[dict] | 
     # WEBTOP_LOGIN=direct (identifiant Webtop) / moe (ministère) ; vide = essaie direct puis ministère
     mode = env("WEBTOP_LOGIN").lower()
     args = (env("WEBTOP_USERNAME"), env("WEBTOP_PASSWORD"), env("WEBTOP_DATA", DEFAULT_DATA))
-    wt: Webtop = WebtopMoE(*args) if mode == "moe" else Webtop(*args)
+    if env("WEBTOP_SESSION"):
+        wt: Webtop = WebtopSession(env("WEBTOP_SESSION"))
+        mode = "session"
+    else:
+        wt = WebtopMoE(*args) if mode == "moe" else Webtop(*args)
     try:
         try:
             await wt.login()
@@ -989,17 +1027,20 @@ def sync_calendar(items: list[dict], today: dt.date, student: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-def build_site(items: list[dict], lessons: list[dict], student: str, password: str) -> None:
+def build_site(items: list[dict], lessons: list[dict], student: str, password: str,
+               warning: str = "", updated: str = "") -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for f in (ROOT / "site").iterdir():
         if f.is_file():
             shutil.copy(f, OUT / f.name)
     payload = {
-        "updated": dt.datetime.now(TZ).isoformat(timespec="minutes"),
+        "updated": updated or dt.datetime.now(TZ).isoformat(timespec="minutes"),
         "student": student,
         "items": items,
         "lessons": lessons,
     }
+    if warning:
+        payload["warning"] = warning
     (OUT / "data.enc.json").write_text(json.dumps(encrypt(payload, password)))
     (OUT / ".nojekyll").write_text("")
     log(f"✓ Portail généré ({len(items)} devoirs, {len(lessons)} cours)")
@@ -1007,7 +1048,8 @@ def build_site(items: list[dict], lessons: list[dict], student: str, password: s
 
 async def main() -> int:
     family_pw = env("FAMILY_PASSWORD")
-    missing = [n for n in ("WEBTOP_USERNAME", "WEBTOP_PASSWORD", "FAMILY_PASSWORD") if not env(n)]
+    needed = ("FAMILY_PASSWORD",) if env("WEBTOP_SESSION") else ("WEBTOP_USERNAME", "WEBTOP_PASSWORD", "FAMILY_PASSWORD")
+    missing = [n for n in needed if not env(n)]
     if missing:
         log("Secrets manquants :", ", ".join(missing))
         return 1
@@ -1016,7 +1058,14 @@ async def main() -> int:
     today = dt.datetime.now(TZ).date()
     prev_payload = load_previous(family_pw)
     previous = prev_payload.get("items", [])
-    fresh, student, lessons = await fetch_webtop(diagnostic)
+    try:
+        fresh, student, lessons = await fetch_webtop(diagnostic)
+    except SessionExpired:
+        log("⚠ Session Webtop expirée : on republie les dernières données avec un avertissement")
+        build_site(prev_payload.get("items", []), prev_payload.get("lessons", []),
+                   prev_payload.get("student", ""), family_pw, warning="session_expired",
+                   updated=prev_payload.get("updated", ""))
+        return 0
     log(f"✓ {len(fresh)} devoirs reçus de Webtop")
 
     if not fresh and any(i["date"] >= today.isoformat() for i in previous):

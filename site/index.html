@@ -108,6 +108,8 @@
   .lock button{width:100%;padding:14px;border-radius:12px;border:0;background:var(--accent);color:#fff;font-weight:600;font-size:16px;cursor:pointer}
   .lock .lang{margin-top:22px}
   .err{color:#dc2626;font-size:14px;min-height:20px;margin-top:8px}
+  .warn{background:color-mix(in srgb, var(--today) 14%, var(--card));border:1px solid color-mix(in srgb, var(--today) 40%, transparent);
+    border-radius:12px;padding:10px 14px;font-size:14px;margin:0 0 14px}
   .hidden{display:none !important}
 </style>
 </head>
@@ -188,6 +190,7 @@
     noneUpcoming:{fr:"🎉 Aucun devoir à venir", he:"🎉 אין שיעורי בית בקרוב", en:"🎉 No upcoming homework", es:"🎉 No hay deberes próximos"},
     previous:    {fr:"Jours précédents", he:"ימים קודמים", en:"Previous days", es:"Días anteriores"},
     bag:         {fr:"Dans le cartable", he:"בתיק", en:"In the school bag", es:"En la mochila"},
+    expired:     {fr:"⚠️ La connexion à Webtop a expiré : les infos ne sont plus mises à jour. Un parent doit se reconnecter.", he:"⚠️ החיבור ל-Webtop פג: המידע לא מתעדכן. הורה צריך להתחבר מחדש.", en:"⚠️ The Webtop session expired: info is no longer updating. A parent needs to sign in again.", es:"⚠️ La sesión de Webtop caducó: la información ya no se actualiza. Un padre debe volver a conectarse."},
     markDone:    {fr:"Marquer comme fait", he:"סמן כבוצע", en:"Mark as done", es:"Marcar como hecho"},
   };
 
@@ -394,7 +397,8 @@
     const todo = data.items.filter(i => i.date >= today && !done.has(i.id)).length;
     $("hwCount").textContent = todo || ""; $("hwCount").className = todo ? "count" : "";
     document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
-    $("view").innerHTML = tab === "tt" ? viewTT() : tab === "hw" ? viewHW() : viewHome();
+    $("view").innerHTML = (data.warning === "session_expired" ? `<div class="warn">${t("expired")}</div>` : "")
+      + (tab === "tt" ? viewTT() : tab === "hw" ? viewHW() : viewHome());
   }
 
   function go(tb, day){
