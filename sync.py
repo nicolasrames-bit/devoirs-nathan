@@ -610,6 +610,21 @@ async def fetch_webtop(diagnostic: bool) -> tuple[list[dict], str, list[dict] | 
         hw = await wt.homework(enc_id, int(cc), int(cn))
         if diagnostic:
             log("HOMEWORK:", json.dumps(skeleton(hw), ensure_ascii=False, indent=1))
+            rows = (hw.get("data") or {}).get("dataTable") if isinstance(hw.get("data"), dict) else None
+            if isinstance(rows, list):
+                log("  statuts:", sorted({str(r.get("status")) for r in rows}),
+                    "· heures:", [r.get("hourName") for r in rows][:8],
+                    "· avec devoirs:", sum(1 for r in rows if (r.get("homeworkData") or "").strip()))
+            flags = {k: v for k, v in (dash.get("data") or {}).items() if k.startswith("allow")}
+            log("  droits:", flags)
+            for ep in ("/server/api/dashboard/ShotefSchedualeDataForToday",
+                       "/server/api/dashboard/ChangesAndMessagesDataForToday"):
+                try:
+                    r = await wt.post(ep, {"id": enc_id, "ClassCode": int(cc), "ClassNumber": int(cn)})
+                    log(f"TRY {ep}:", json.dumps(skeleton(r, max_depth=5), ensure_ascii=False),
+                        "| erreur =", r.get("errorDescription"))
+                except Exception as e:
+                    log(f"TRY {ep}: {type(e).__name__} {str(e)[:120]}")
             if isinstance(wt, WebtopMoE):
                 await explore_ui(wt, captured)
         if hw.get("status") is False:
@@ -622,6 +637,12 @@ async def fetch_webtop(diagnostic: bool) -> tuple[list[dict], str, list[dict] | 
             lessons = await fetch_schedule(wt, enc_id, int(cc), diagnostic)
         except Exception as e:  # l'emploi du temps ne doit jamais bloquer les devoirs
             log(f"  ⚠ Emploi du temps non récupéré : {type(e).__name__}: {e}")
+
+        day_table = normalize_day_table(hw, dt.datetime.now(TZ).date())
+        if day_table is not None:
+            items, day_lessons = day_table
+            log(f"✓ Journée : {len(day_lessons)} cours, {len(items)} avec devoirs")
+            return items, first, (lessons or day_lessons)
         return normalize(hw), first, lessons
     finally:
         await wt.close()
@@ -798,6 +819,39 @@ def normalize(resp: Any) -> list[dict]:
         items[iid] = {"id": iid, "date": iso, "subject": subject, "content": content,
                       "teacher": teacher}
     return sorted(items.values(), key=lambda x: (x["date"], x["subject"]))
+
+
+def normalize_day_table(resp: Any, day: dt.date) -> tuple[list[dict], list[dict]] | None:
+    """Format renvoyé par GetHomeWork pour un parent : les cours du jour, avec les devoirs donnés."""
+    data = resp.get("data") if isinstance(resp, dict) else None
+    rows = data.get("dataTable") if isinstance(data, dict) else None
+    if not isinstance(rows, list):
+        return None
+    iso = day.isoformat()
+    items, lessons = [], []
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        subject = clean(r.get("lesson")) or "Cours"
+        teacher = clean(r.get("teacher"))
+        topic = clean(r.get("lessonSubject"))
+        status = clean(r.get("status"))
+        cancel = clean(r.get("cancelReason"))
+        times = re.findall(r"\d{1,2}:\d{2}", str(r.get("hourName") or ""))
+        cancelled = bool(cancel) or any(w in status for w in ("בוטל", "ביטול"))
+        lessons.append({
+            "date": iso, "hour": as_int(r.get("hourNum")),
+            "start": as_time(times[0]) if times else "", "end": as_time(times[1]) if len(times) > 1 else "",
+            "subject": subject, "teacher": teacher, "room": "", "cancelled": cancelled,
+            "note": cancel, "topic": topic,
+        })
+        hw = clean(r.get("homeworkData"))
+        if hw:
+            iid = item_id(iso, subject, hw)
+            items.append({"id": iid, "date": iso, "subject": subject, "content": hw,
+                          "teacher": teacher, "topic": topic})
+    lessons.sort(key=lambda l: (l["hour"] or 0, l["start"]))
+    return items, lessons
 
 
 # --------------------------------------------------------------------------- #
@@ -1074,8 +1128,13 @@ async def main() -> int:
     else:
         items = merge(previous, fresh, today)
 
-    if not lessons:  # échec ou vide : on garde l'emploi du temps déjà publié
-        lessons = prev_payload.get("lessons", [])
+    # Emploi du temps : les jours reçus remplacent les anciens ; on garde les autres jours (14 j)
+    lessons = lessons or []
+    got = {l["date"] for l in lessons}
+    keep_from = (today - dt.timedelta(days=14)).isoformat()
+    lessons = sorted(lessons + [l for l in prev_payload.get("lessons", [])
+                                if l["date"] not in got and l["date"] >= keep_from],
+                     key=lambda l: (l["date"], l.get("hour") or 0, l.get("start") or ""))
 
     build_site(items, lessons, student, family_pw)
     sync_calendar(items, today, student)
