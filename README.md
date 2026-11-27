@@ -31,6 +31,23 @@ Rien ne tourne sur ton PC. Aucun identifiant n'est dans le code : tout est dans 
 | `WEBTOP_PASSWORD` | mot de passe Webtop |
 | `FAMILY_PASSWORD` | un mot de passe que tu choisis pour la page famille (à donner à Tania et Nathan) |
 
+## 2 bis. Relais Israël (obligatoire)
+
+Webtop bloque les connexions venant de l'étranger, et GitHub tourne aux États-Unis.
+Un mini-relais dans le data center Google de **Tel Aviv** fait passer uniquement les appels Webtop
+(protégé par un jeton secret, il ne stocke rien). Coût : gratuit ou quelques centimes par mois.
+
+1. <https://console.cloud.google.com> → crée (ou choisis) un projet, par ex. `devoirs-nathan`.
+   La facturation doit être activée sur le projet (menu *Facturation*), Cloud Functions l'exige.
+2. Clique sur l'icône **Cloud Shell** `>_` en haut à droite, puis colle :
+   ```
+   bash <(curl -fsSL https://raw.githubusercontent.com/nicolasrames-bit/devoirs-nathan/main/relay/setup-cloudshell.sh)
+   ```
+3. À la fin, le script affiche 2 valeurs : ajoute-les comme secrets GitHub
+   `WEBTOP_RELAY_URL` et `WEBTOP_RELAY_TOKEN`.
+
+Le même projet Google Cloud servira pour Google Calendar (étape 4).
+
 ## 3. Premier lancement
 
 **Actions → Sync devoirs → Run workflow**, coche **Mode diagnostic** → Run.

@@ -72,8 +72,11 @@ class Webtop:
         import httpx
 
         self.username, self.password, self.data = username, password, data
+        relay = env("WEBTOP_RELAY_URL").rstrip("/")
+        extra = {"X-Relay-Token": env("WEBTOP_RELAY_TOKEN")} if relay else {}
+        log(f"  via {'relais Israël' if relay else 'connexion directe'}")
         self.http = httpx.AsyncClient(
-            base_url=BASE_URL,
+            base_url=relay or BASE_URL,
             timeout=30,
             follow_redirects=True,
             headers={
@@ -84,6 +87,7 @@ class Webtop:
                 "Referer": "https://webtop.smartschool.co.il/",
                 "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                                "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"),
+                **extra,
             },
         )
         self.login_data: dict = {}
