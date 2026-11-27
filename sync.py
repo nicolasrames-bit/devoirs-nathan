@@ -689,6 +689,14 @@ async def fetch_webtop(diagnostic: bool) -> tuple[list[dict], str, list[dict] | 
                                 stats[x.get("statClass")] = stats.get(x.get("statClass"), 0) + 1
                 log("  statClass:", stats, "· sujets remplis:", sum(1 for l in h_lessons if l["topic"]),
                     "· devoirs:", len(h_items))
+                # Grille brute de la semaine en cours : date conteneur -> heure -> (matière, day_no, hour_no)
+                for r in resps[-2:-1]:
+                    for d in r.get("data") or []:
+                        row = []
+                        for h in d.get("hoursData") or []:
+                            for x in h.get("scheduale") or []:
+                                row.append(f"{h.get('hour')}:{x.get('subject_name')}(d{x.get('day_no')},h{x.get('hour_no')})")
+                        log(f"  GRID {str(d.get('date'))[:10]} idx{d.get('dayIndex')}: {' | '.join(row)}")
             if STUDENT.get("backfill") and h_lessons:
                 STUDENT["backfill_done"] = True
             log(f"✓ Historique : semaines {weeks[0]}..{weeks[-1]} → {len(h_lessons)} cours, {len(h_items)} devoirs"
