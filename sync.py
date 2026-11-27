@@ -1258,6 +1258,49 @@ def fill_times(lessons: list[dict], weekly: list[dict]) -> list[dict]:
     return lessons
 
 
+def _subj_tokens(s: str) -> list[str]:
+    return [re.sub(r"[\s'\"׳״.\-]", "", t) for t in re.split(r"[/\\,|]", s or "") if t.strip()]
+
+
+def same_subject(a: str, b: str) -> bool:
+    ta, tb = _subj_tokens(a), _subj_tokens(b)
+    return any(x and y and (x in y or y in x) for x in ta for y in tb)
+
+
+def align_to_weekly(lessons: list[dict], items: list[dict], weekly: list[dict]) -> tuple[list[dict], list[dict]]:
+    """
+    Webtop renvoie les cours de toute la classe (tous les groupes). L'emploi du temps de l'enfant fait foi :
+    pour chaque jour connu, on prend ses cours habituels et on y rattache sujet / annulation / devoirs
+    des cours Webtop de la même heure et de la même matière. Le reste (autres groupes) est ignoré.
+    """
+    by_day: dict[int, list[dict]] = {}
+    for w in weekly:
+        by_day.setdefault(w["day"], []).append(w)
+    real_by: dict[tuple[str, int], list[dict]] = {}
+    for l in lessons:
+        real_by.setdefault((l["date"], l.get("hour") or 0), []).append(l)
+
+    out = []
+    for date in sorted({l["date"] for l in lessons}):
+        wd = (dt.date.fromisoformat(date).weekday() + 1) % 7
+        for w in by_day.get(wd, []):
+            match = next((r for r in real_by.get((date, w["hour"]), []) if same_subject(r["subject"], w["subject"])), None)
+            out.append({"date": date, "hour": w["hour"], "start": w["start"], "end": w["end"],
+                        "subject": w["subject"], "teacher": w["teacher"], "room": "",
+                        "cancelled": bool(match and match.get("cancelled")),
+                        "note": (match or {}).get("note", ""), "topic": (match or {}).get("topic", ""),
+                        "webtop": (match or {}).get("subject", "")})
+
+    # Devoirs : seulement ceux d'une matière que l'enfant a ce jour-là (sinon c'est un autre groupe)
+    kept = []
+    for i in items:
+        wd = (dt.date.fromisoformat(i["date"]).weekday() + 1) % 7
+        name = next((w["subject"] for w in by_day.get(wd, []) if same_subject(i["subject"], w["subject"])), None)
+        if name:
+            kept.append({**i, "subject": name})
+    return out, kept
+
+
 # --------------------------------------------------------------------------- #
 # Exercices adaptés aux cours (API Claude). Seuls matière / sujet / devoirs sont envoyés.
 # --------------------------------------------------------------------------- #
@@ -1438,7 +1481,7 @@ def build_site(items: list[dict], lessons: list[dict], student: str, password: s
         "lessons": lessons,
         "exercises": exercises or [],
         "weekly": weekly or [],
-        "backfilled": bool(STUDENT.get("backfill_done")),
+        "backfilled": bool(STUDENT.get("backfill_done") or STUDENT.get("was_backfilled")),
     }
     if warning:
         payload["warning"] = warning
@@ -1459,6 +1502,7 @@ async def main() -> int:
     today = dt.datetime.now(TZ).date()
     prev_payload = load_previous(family_pw)
     previous = prev_payload.get("items", [])
+    STUDENT["was_backfilled"] = bool(prev_payload.get("backfilled"))
     STUDENT["backfill"] = not prev_payload.get("backfilled") or env("BACKFILL") == "1"
     try:
         fresh, student, lessons = await fetch_webtop(diagnostic)
@@ -1487,8 +1531,10 @@ async def main() -> int:
 
     weekly = parse_weekly(env("WEEKLY_TIMETABLE")) or prev_payload.get("weekly", [])
     if weekly:
-        fill_times(lessons, weekly)
-        log(f"✓ Emploi du temps habituel : {len(weekly)} cours / semaine")
+        n_l, n_i = len(lessons), len(items)
+        lessons, items = align_to_weekly(lessons, items, weekly)
+        log(f"✓ Emploi du temps habituel : {len(weekly)} cours / semaine — alignement : {n_l}→{len(lessons)} cours,"
+            f" {n_i}→{len(items)} devoirs, {sum(1 for l in lessons if l['topic'])} avec sujet")
     exercises = build_exercises(lessons, items, prev_payload.get("exercises", []), today)
     build_site(items, lessons, student, family_pw, exercises=exercises, weekly=weekly)
     sync_calendar(items, today, student)
