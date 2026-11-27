@@ -123,8 +123,12 @@ class Webtop:
         )
         data = res.get("data") or {}
         if not res.get("status") or not data.get("token"):
-            msg = res.get("errorDescription") or res.get("message") or "identifiants refusés ?"
-            raise RuntimeError(f"Connexion Webtop échouée : {msg}")
+            # Uniquement des messages d'erreur / codes, jamais de données personnelles
+            info = {k: v for k, v in res.items()
+                    if isinstance(v, (str, int, bool)) and not isinstance(v, bool) or k == "status"}
+            info = {k: (v[:160] if isinstance(v, str) else v) for k, v in info.items()}
+            raise RuntimeError(f"Connexion Webtop échouée. Réponse : {json.dumps(info, ensure_ascii=False)}"
+                               f" · clés data : {list(data.keys()) if isinstance(data, dict) else type(data).__name__}")
         self._set_token(data["token"])
         self.login_data = data
         return data
